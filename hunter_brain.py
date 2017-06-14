@@ -46,6 +46,8 @@ class DeepQNetwork:
         self.cost_his = [] #the error of every step
 
     def _build_net(self):
+        c_names = ['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
+
         # ------------------ build evaluate_net ------------------
         im = tf.placeholder(tf.float32, shape=[None, 84, 84, 4]) / 255  # [10,224,224,3]
         x = tf.placeholder(tf.float32, shape=[None, 1])
