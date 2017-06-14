@@ -23,29 +23,23 @@ class DeepQNetwork:
         self.gamma = 0.99  # discount factor
         self.action_repeat = 4
         self.update_frequency = 4
-
+        self.initial_exploration = 1
+        self.final_exploration = 0.1
+        self.final_exploration_frame = 1000000
+        self.reply_start_size = 50000
+        #used by RMSProp
         self.learning_rate = 0.00025
         self.gredient_momentum = 0.95
         self.squared_gredient_momentum = 0.95
         self.min_squared_gradient = 0.01
 
-        self.initial_exploration = 1
-        self.final_exploration = 0.1
-        self.final_exploration_frame = 1000000
-        self.reply_start_size = 50000
-
         self._build_net()# consist of [target_net, evaluate_net]
         self.sess = tf.Session()
 
-        if output_graph:
-            # $ tensorboard --logdir=logs
-            # tf.train.SummaryWriter soon be deprecated, use following
-            tf.summary.FileWriter("logs/", self.sess.graph)
         self.sess.run(tf.global_variables_initializer())
         self.cost_his = [] #the error of every step
 
     def _build_net(self):
-        c_names = ['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
 
         # ------------------ build evaluate_net ------------------
         im = tf.placeholder(tf.float32, shape=[None, 84, 84, 4]) / 255  # [10,224,224,3]
@@ -55,21 +49,22 @@ class DeepQNetwork:
 
         keep_prob = tf.placeholder(tf.float32)
 
+        col_eval_net = ['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
         ## conv1 layer ##
-        W_conv1 = tf.Variable(tf.truncated_normal([8, 8, 4, 32], stddev=0.1))
-        b_conv1 = tf.Variable(tf.constant(0.1, shape=[32]))
+        W_conv1 = tf.Variable(tf.truncated_normal([8, 8, 4, 32], stddev=0.1),collections = col_eval_net)
+        b_conv1 = tf.Variable(tf.constant(0.1, shape=[32]),collections = col_eval_net)
         conv1 = tf.nn.conv2d(im, W_conv1, strides=[1, 4, 4, 1], padding='SAME')
         h_conv1 = tf.nn.relu(conv1 + b_conv1)
 
         ## conv2 layer ##
-        W_conv2 = tf.Variable(tf.truncated_normal([4, 4, 32, 64], stddev=0.1))
-        b_conv2 = tf.Variable(tf.constant(0.1, shape=[64]))
+        W_conv2 = tf.Variable(tf.truncated_normal([4, 4, 32, 64], stddev=0.1),collections = col_eval_net)
+        b_conv2 = tf.Variable(tf.constant(0.1, shape=[64]),collections = col_eval_net)
         conv2 = tf.nn.conv2d(h_conv1, W_conv2, strides=[1, 2, 2, 1], padding='SAME')
         h_conv2 = tf.nn.relu(conv2 + b_conv2)
 
         ## conv3 layer ##
-        W_conv3 = tf.Variable(tf.truncated_normal([3, 3, 64, 64], stddev=0.1))
-        b_conv3 = tf.Variable(tf.constant(0.1, shape=[64]))
+        W_conv3 = tf.Variable(tf.truncated_normal([3, 3, 64, 64], stddev=0.1),collections = col_eval_net)
+        b_conv3 = tf.Variable(tf.constant(0.1, shape=[64]),collections = col_eval_net)
         conv3 = tf.nn.conv2d(h_conv2, W_conv3, strides=[1, 1, 1, 1], padding='SAME')
         h_conv3 = tf.nn.relu(conv3 + b_conv3)
 
@@ -77,19 +72,19 @@ class DeepQNetwork:
         h_pool3_flat = tf.reshape(h_conv3, [-1, 2304])
 
         ## fc4 layer ##
-        W_fc4 = tf.Variable(tf.truncated_normal([9216, 4096], stddev=0.1))
-        b_fc4 = tf.Variable(tf.constant(0.1, shape=[4096]))
+        W_fc4 = tf.Variable(tf.truncated_normal([9216, 4096], stddev=0.1),collections = col_eval_net)
+        b_fc4 = tf.Variable(tf.constant(0.1, shape=[4096]),collections = col_eval_net)
         h_fc4 = tf.nn.relu(tf.matmul(h_pool3_flat, W_fc4) + b_fc4)
         h_fc4_drop = tf.nn.dropout(h_fc4, keep_prob)
 
         ## fc5 layer ##
-        W_fc5 = tf.Variable(tf.truncated_normal([4096, 512], stddev=0.1))
-        b_fc5 = tf.Variable(tf.constant(0.1, shape=[512]))
+        W_fc5 = tf.Variable(tf.truncated_normal([4096, 512], stddev=0.1),collections = col_eval_net)
+        b_fc5 = tf.Variable(tf.constant(0.1, shape=[512]),collections = col_eval_net)
         h_fc5 = tf.matmul(h_fc4_drop, W_fc5) + b_fc5
         self.q_eval = h_fc5
 
         self.loss = tf.reduce_mean(tf.squared_difference(self.q_target, self.q_eval))
-        self._train_op = tf.train.RMSPropOptimizer(self.lr).minimize(self.loss)
+        self._train_op = tf.train.RMSPropOptimizer(self.learning_rate,).minimize(self.loss)???
 
         # ------------------ build target_net ------------------
         im = tf.placeholder(tf.float32, shape=[None, 84, 84, 4]) / 255  # [10,224,224,3]
@@ -99,21 +94,22 @@ class DeepQNetwork:
 
         keep_prob = tf.placeholder(tf.float32)
 
+        col_targ_net = ['target_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
         ## conv1 layer ##
-        W_conv1 = tf.Variable(tf.truncated_normal([8, 8, 4, 32], stddev=0.1))
-        b_conv1 = tf.Variable(tf.constant(0.1, shape=[32]))
+        W_conv1 = tf.Variable(tf.truncated_normal([8, 8, 4, 32], stddev=0.1),collections = col_targ_net)
+        b_conv1 = tf.Variable(tf.constant(0.1, shape=[32]),collections = col_targ_net)
         conv1 = tf.nn.conv2d(im, W_conv1, strides=[1, 4, 4, 1], padding='SAME')
         h_conv1 = tf.nn.relu(conv1 + b_conv1)
 
         ## conv2 layer ##
-        W_conv2 = tf.Variable(tf.truncated_normal([4, 4, 32, 64], stddev=0.1))
-        b_conv2 = tf.Variable(tf.constant(0.1, shape=[64]))
+        W_conv2 = tf.Variable(tf.truncated_normal([4, 4, 32, 64], stddev=0.1),collections = col_targ_net)
+        b_conv2 = tf.Variable(tf.constant(0.1, shape=[64]),collections = col_targ_net)
         conv2 = tf.nn.conv2d(h_conv1, W_conv2, strides=[1, 2, 2, 1], padding='SAME')
         h_conv2 = tf.nn.relu(conv2 + b_conv2)
 
         ## conv3 layer ##
-        W_conv3 = tf.Variable(tf.truncated_normal([3, 3, 64, 64], stddev=0.1))
-        b_conv3 = tf.Variable(tf.constant(0.1, shape=[64]))
+        W_conv3 = tf.Variable(tf.truncated_normal([3, 3, 64, 64], stddev=0.1),collections = col_targ_net)
+        b_conv3 = tf.Variable(tf.constant(0.1, shape=[64]),collections = col_targ_net)
         conv3 = tf.nn.conv2d(h_conv2, W_conv3, strides=[1, 1, 1, 1], padding='SAME')
         h_conv3 = tf.nn.relu(conv3 + b_conv3)
 
@@ -121,14 +117,14 @@ class DeepQNetwork:
         h_pool3_flat = tf.reshape(h_conv3, [-1, 2304])
 
         ## fc4 layer ##
-        W_fc4 = tf.Variable(tf.truncated_normal([9216, 4096], stddev=0.1))
-        b_fc4 = tf.Variable(tf.constant(0.1, shape=[4096]))
+        W_fc4 = tf.Variable(tf.truncated_normal([9216, 4096], stddev=0.1),collections = col_targ_net)
+        b_fc4 = tf.Variable(tf.constant(0.1, shape=[4096]),collections = col_targ_net)
         h_fc4 = tf.nn.relu(tf.matmul(h_pool3_flat, W_fc4) + b_fc4)
         h_fc4_drop = tf.nn.dropout(h_fc4, keep_prob)
 
         ## fc5 layer ##
-        W_fc5 = tf.Variable(tf.truncated_normal([4096, 512], stddev=0.1))
-        b_fc5 = tf.Variable(tf.constant(0.1, shape=[512]))
+        W_fc5 = tf.Variable(tf.truncated_normal([4096, 512], stddev=0.1),collections = col_targ_net)
+        b_fc5 = tf.Variable(tf.constant(0.1, shape=[512]),collections = col_targ_net)
         h_fc5 = tf.matmul(h_fc4_drop, W_fc5) + b_fc5
         self.q_next = h_fc5
 
