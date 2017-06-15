@@ -7,9 +7,6 @@ Using Tensorflow to build the neural network.
 import numpy as np
 import tensorflow as tf
 
-np.random.seed(1)
-tf.set_random_seed(1)
-
 
 # Deep Q Network off-policy
 class DeepQNetwork:
@@ -22,21 +19,20 @@ class DeepQNetwork:
         self.exploration = 1.
 
         self.batch_size = 32
-        self.memory_size = 1000000  # replay memory size
+        self.memory_size = 100000  # replay memory size
         self.history_length = 4 #agent history length
-        self.target_network_update_frequency = 10000 #target network update frequency
+        self.target_network_update_frequency = 1000 #target network update frequency
         self.gamma = 0.99  # discount factor
         self.action_repeat = 4
         self.update_frequency = 4
         self.final_exploration = 0.1
-        self.final_exploration_frame = 1000000
-        self.replay_start_size = 50000
+        self.final_exploration_frame = 100000
+        self.replay_start_size = 5000
         #used by RMSProp
         self.learning_rate = 0.00025
         self.gredient_momentum = 0.95
         self.squared_gredient_momentum = 0.95
         self.min_squared_gradient = 0.01
-
 
         self._build_net()# consist of [target_net, evaluate_net]
         self.sess = tf.Session()
@@ -45,7 +41,6 @@ class DeepQNetwork:
         self.cost_his = [] #the error of every step
 
     def _build_net(self):
-
         # ------------------ build evaluate_net ------------------
         self.im_to_evaluate_net = tf.placeholder(tf.float32, shape=[None, 84, 84, 4]) / 255  # [10,84,84,4]
 
@@ -127,36 +122,32 @@ class DeepQNetwork:
         h_fc5 = tf.matmul(h_fc4_drop, W_fc5) + b_fc5
         self.q_next = h_fc5
 
+
     def store_transition(self, fi, a, r, fi_):
         transition = np.hstack((fi, [a, r], fi_)) #horizontally stack
-
         index = self.memory_counter % self.memory_size # replace the old memory with new memory
         self.memory[index, :] = transition #override the old memory
-
         self.memory_counter += 1
 
     def choose_action(self, observation):
-        # to have batch dimension when feed into tf placeholder
-        observation = observation[np.newaxis, :]
-
-        if np.random.uniform() < self.epsilon: #mao si fan le
-            # forward feed the observation and get q value for every actions
-            actions_value = self.sess.run(self.q_eval, feed_dict={self.: observation})
-            action = np.argmax(actions_value)
-        else:
+        observation = observation[None, 84*84*4]
+        if np.random.uniform() < self.exploration: #exploration
             action = np.random.randint(0, self.n_actions)
+        else:
+            actions_value = self.sess.run(self.q_eval, feed_dict={self.im_to_evaluate_net: observation})
+            action = np.argmax(actions_value)
         return action
 
 
     def learn(self):
         # check to replace target parameters
-        if self.learn_step_counter % self.target_network_update_frequency == 0: #self.target_network_update_frequency = 10000
+        if self.learn_step_counter % self.target_network_update_frequency == 0: #self.target_network_update_frequency = 1000
             t_params = tf.get_collection('target_net_params')
             e_params = tf.get_collection('eval_net_params')
             self.sess.run([tf.assign(t, e) for t, e in zip(t_params, e_params)])
             print('target_params_rplaced')
             if(self.exploration > self.final_exploration):
-                self.exploration -= 0.009
+                self.exploration -= 0.09
                 print('self.exploration changed to',self.exploration)
 
         # sample batch memory from all memory
@@ -169,28 +160,26 @@ class DeepQNetwork:
         q_next, q_eval = self.sess.run(
             [self.q_next, self.q_eval],
             feed_dict={
-                self.s_: batch_memory[:, -self.n_features:],  # fixed params
-                self.s: batch_memory[:, :self.n_features],  # newest params
+                self.im_to_evaluate_net: batch_memory[:, 84*84*4],  # fixed params
+                self.im_to_target_net: batch_memory[:, 84*84*4],  # newest params
             })
 
         # change q_target w.r.t q_eval's action
         q_target = q_eval.copy()
 
         batch_index = np.arange(self.batch_size, dtype=np.int32)
-        eval_act_index = batch_memory[:, self.n_features].astype(int)
-        reward = batch_memory[:, self.n_features + 1]
+        eval_act_index = batch_memory[:, 84*84*4].astype(int)
+        reward = batch_memory[:, 84*84*4]
 
         q_target[batch_index, eval_act_index] = reward + self.gamma * np.max(q_next, axis=1)
 
 
         # train eval network
         _, self.cost = self.sess.run([self._train_op, self.loss],
-                                     feed_dict={self.s: batch_memory[:, :self.n_features],
+                                     feed_dict={self.im_to_evaluate_net: batch_memory[:, 84*84*4],
                                                 self.q_target: q_target})
         self.cost_his.append(self.cost)
 
-        # increasing epsilon
-        self.epsilon = self.epsilon + self.epsilon_increment if self.epsilon < self.epsilon_max else self.epsilon_max
         self.learn_step_counter += 1
 
     def plot_cost(self):
