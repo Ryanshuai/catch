@@ -26,7 +26,7 @@ class DeepQNetwork:
         self.final_exploration_frame = 100000
         self.replay_start_size = 5000
         # used by RMSProp
-        self.learning_rate = 0.00025
+        self.lr = 0.00025
         self.gredient_momentum = 0.95
         self.squared_gredient_momentum = 0.95
         self.min_squared_gradient = 0.01
@@ -88,7 +88,7 @@ class DeepQNetwork:
         col_eval_net = ['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
         self.q_eval = build_layers(self.im_to_evaluate_net, col_eval_net, self.keep_prob)
         self.loss = tf.reduce_mean(tf.squared_difference(self.q_target, self.q_eval))
-        self._train_op = tf.train.RMSPropOptimizer(self.learning_rate).minimize(self.loss)
+        self._train_op = tf.train.RMSPropOptimizer(self.lr, decay=0.95, momentum=0.95, epsilon=0.01).minimize(self.loss)
 
         # ------------------ build target_net ------------------
         col_targ_net = ['target_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
