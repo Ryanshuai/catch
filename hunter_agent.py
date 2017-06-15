@@ -24,6 +24,7 @@ class hunter_Agent:
         self.final_exploration = 0.1
         self.final_exploration_frame = 100000
         self.replay_start_size = 5000
+        self.cost_his = []  # the error of every step
         # used by RMSProp
         self.lr = 0.00025
         self.gredient_momentum = 0.95
@@ -45,7 +46,7 @@ class hunter_Agent:
         self.sess = tf.Session()
 
         self.sess.run(tf.global_variables_initializer())
-        self.cost_his = [] #the error of every step
+
 
     def _build_net(self):
         def build_layers(s, collection_names, keep_prob):
@@ -105,7 +106,7 @@ class hunter_Agent:
 
 
     def choose_action(self, observation):
-        observation = observation[None, self.w,self.h,self.m]???
+        observation = observation[None, self.w,self.h,self.m]
         if np.random.uniform() < self.exploration: #exploration
             action = np.random.randint(0, self.n_actions)
         else:
