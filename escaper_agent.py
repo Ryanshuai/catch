@@ -26,7 +26,7 @@ class Escaper_Agent:
         self.replay_start_size = 5000
         self.cost_his = []  # the error of every step
         #used by RMSProp
-        self.learning_rate = 0.00025
+        self.lr = 0.00025
         self.gredient_momentum = 0.95
         self.squared_gredient_momentum = 0.95
         self.min_squared_gradient = 0.01
@@ -93,7 +93,7 @@ class Escaper_Agent:
         col_eval_net = ['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
         self.q_eval = build_layers(self.im_to_evaluate_net, col_eval_net, self.keep_prob)
         self.loss = tf.reduce_mean(tf.squared_difference(self.q_target, self.q_eval))
-        self._train_op = tf.train.RMSPropOptimizer(self.learning_rate).minimize(self.loss)
+        self._train_op = tf.train.RMSPropOptimizer(self.lr).minimize(self.loss)
 
         # ------------------ build target_net ------------------
         col_targ_net = ['target_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
@@ -143,12 +143,9 @@ class Escaper_Agent:
         batch_r = self.memory['r'][sample_index]
         batch_fi_ = self.memory['fi_'][sample_index]
 
-        q_next, q_eval = self.sess.run(
-            [self.q_next, self.q_eval],
-            feed_dict={
-                self.im_to_evaluate_net: batch_fi,  # newest params
-                self.im_to_target_net: batch_fi_,  # fixed params
-            })
+        q_next, q_eval = self.sess.run([self.q_next, self.q_eval],
+            feed_dict={self.im_to_evaluate_net: batch_fi,  # newest params
+                        self.im_to_target_net: batch_fi_,})  # fixed params
 
         # change q_target w.r.t q_eval's action
         q_target = q_eval.copy()
