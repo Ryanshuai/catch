@@ -87,13 +87,14 @@ class hunter_Agent:
         # ------------------ build evaluate_net ------------------
         col_eval_net = ['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
         self.q_eval = build_layers(self.im_to_evaluate_net, col_eval_net, self.keep_prob)
-        self.loss = tf.reduce_mean(tf.squared_difference(self.q_target, self.q_eval))
-        self._train_op = tf.train.RMSPropOptimizer(self.lr, decay=0.95, momentum=0.95, epsilon=0.01).minimize(self.loss)
 
         # ------------------ build target_net ------------------
         col_targ_net = ['target_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
         self.q_next = build_layers(self.im_to_target_net, col_targ_net, self.keep_prob)
         self.q_target = self.r + self.gamma * tf.reduce_max(self.q_next, axis=1)
+
+        self.loss = tf.reduce_mean(tf.squared_difference(self.q_target, self.q_eval))
+        self._train_op = tf.train.RMSPropOptimizer(self.lr, decay=0.95, momentum=0.95, epsilon=0.01).minimize(self.loss)
 
 
     def store_transition(self, fi, a, r, fi_):

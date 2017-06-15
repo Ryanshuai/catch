@@ -88,17 +88,17 @@ class Escaper_Agent:
         self.a = tf.placeholder(tf.int32, [None, ], name='a')  # input Action
         self.keep_prob = tf.placeholder(tf.float32)
 
-
         # ------------------ build evaluate_net ------------------
         col_eval_net = ['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
         self.q_eval = build_layers(self.im_to_evaluate_net, col_eval_net, self.keep_prob)
-        self.loss = tf.reduce_mean(tf.squared_difference(self.q_target, self.q_eval))
-        self._train_op = tf.train.RMSPropOptimizer(self.lr).minimize(self.loss)
 
         # ------------------ build target_net ------------------
         col_targ_net = ['target_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
         self.q_next = build_layers(self.im_to_target_net, col_targ_net, self.keep_prob)
         self.q_target = self.r + self.gamma * tf.reduce_max(self.q_next, axis=1)
+
+        self.loss = tf.reduce_mean(tf.squared_difference(self.q_target, self.q_eval))
+        self._train_op = tf.train.RMSPropOptimizer(self.lr).minimize(self.loss)
 
 
     def store_transition(self, fi, a, r, fi_):
