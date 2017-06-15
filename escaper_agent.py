@@ -16,7 +16,7 @@ tf.set_random_seed(1)
 class Escaper_Agent:
     def __init__(self):
         self.n_actions = 4 #up down left right
-        self.n_robot = 4
+        self.n_robot = 1
 
         self.batch_size = 32
         self.memory_size = 100000  # replay memory size
@@ -51,22 +51,22 @@ class Escaper_Agent:
         self.sess.run(tf.global_variables_initializer())
 
     def _build_net(self):
-        def build_layers(s, c_names, keep_prob):
+        def build_layers(s, collection_names, keep_prob):
             ## conv1 layer ##
-            W_conv1 = tf.Variable(tf.truncated_normal([5, 5, 4, 32], stddev=0.1), collections=c_names)
-            b_conv1 = tf.Variable(tf.constant(0.1, shape=[32]),collections=c_names)
+            W_conv1 = tf.Variable(tf.truncated_normal([5, 5, 4, 32], stddev=0.1), collections=collection_names)???
+            b_conv1 = tf.Variable(tf.constant(0.1, shape=[32]), collections=collection_names)
             conv1 = tf.nn.conv2d(s, W_conv1, strides=[1, 4, 4, 1], padding='SAME')
             h_conv1 = tf.nn.relu(conv1 + b_conv1)
 
             ## conv2 layer ##
-            W_conv2 = tf.Variable(tf.truncated_normal([3, 3, 32, 64], stddev=0.1), collections=c_names)
-            b_conv2 = tf.Variable(tf.constant(0.1, shape=[64]),collections=c_names)
+            W_conv2 = tf.Variable(tf.truncated_normal([3, 3, 32, 64], stddev=0.1), collections=collection_names)???
+            b_conv2 = tf.Variable(tf.constant(0.1, shape=[64]), collections=collection_names)
             conv2 = tf.nn.conv2d(h_conv1, W_conv2, strides=[1, 2, 2, 1], padding='SAME')
             h_conv2 = tf.nn.relu(conv2 + b_conv2)
 
             ## conv3 layer ##
-            W_conv3 = tf.Variable(tf.truncated_normal([3, 3, 64, 64], stddev=0.1),collections=c_names)
-            b_conv3 = tf.Variable(tf.constant(0.1, shape=[64]),collections=c_names)
+            W_conv3 = tf.Variable(tf.truncated_normal([3, 3, 64, 64], stddev=0.1), collections=collection_names)???
+            b_conv3 = tf.Variable(tf.constant(0.1, shape=[64]), collections=collection_names)
             conv3 = tf.nn.conv2d(h_conv2, W_conv3, strides=[1, 1, 1, 1], padding='SAME')
             h_conv3 = tf.nn.relu(conv3 + b_conv3)
 
@@ -74,27 +74,24 @@ class Escaper_Agent:
             h_pool3_flat = tf.reshape(h_conv3, [-1, 7744])
 
             ## fc4 layer ##
-            W_fc4 = tf.Variable(tf.truncated_normal([7744, 4096], stddev=0.1),collections=c_names)
-            b_fc4 = tf.Variable(tf.constant(0.1, shape=[4096]),collections=c_names)
+            W_fc4 = tf.Variable(tf.truncated_normal([7744, 4096], stddev=0.1), collections=collection_names)???
+            b_fc4 = tf.Variable(tf.constant(0.1, shape=[4096]), collections=collection_names)???
             h_fc4 = tf.nn.relu(tf.matmul(h_pool3_flat, W_fc4) + b_fc4)
             h_fc4_drop = tf.nn.dropout(h_fc4, keep_prob)
 
             ## fc5 layer ##
-            W_fc5 = tf.Variable(tf.truncated_normal([4096, self.n_actions], stddev=0.1),collections=c_names)
-            b_fc5 = tf.Variable(tf.constant(0.1, shape=[self.n_actions]),collections=c_names)
+            W_fc5 = tf.Variable(tf.truncated_normal([4096, self.n_actions*self.n_robot], stddev=0.1), collections=collection_names)???
+            b_fc5 = tf.Variable(tf.constant(0.1, shape=[self.n_actions*self.n_robot]), collections=collection_names)
             h_fc5 = tf.matmul(h_fc4_drop, W_fc5) + b_fc5
             return h_fc5
 
         # all inputs
-        self.im_to_evaluate_net = tf.placeholder(tf.float32,
-                                                 shape=[None, self.w, self.h, self.m],
-                                                 name = 's') / 255
-        self.im_to_target_net = tf.placeholder(tf.float32,
-                                               shape=[None, self.w, self.h, self.m],
-                                               name='s_')  # input Next State
+        self.im_to_evaluate_net = tf.placeholder(tf.float32, shape=[None, self.w, self.h, self.m],name = 'fi') / 255
+        self.im_to_target_net = tf.placeholder(tf.float32,shape=[None, self.w, self.h, self.m],name='fi_')  # input Next State
         self.r = tf.placeholder(tf.float32, [None, ], name='r')  # input Reward
         self.a = tf.placeholder(tf.int32, [None, ], name='a')  # input Action
         self.keep_prob = tf.placeholder(tf.float32)
+
 
         # ------------------ build evaluate_net ------------------
         col_eval_net = ['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
@@ -158,14 +155,21 @@ class Escaper_Agent:
 
         # change q_target w.r.t q_eval's action
         q_target = q_eval.copy()
-
         batch_index = np.arange(self.batch_size, dtype=np.int32)
         eval_act_index = batch_a.astype(int)
         reward = batch_r
-
         q_target[batch_index, eval_act_index] = reward + self.gamma * np.max(q_next, axis=1)
-
         # train eval network
         _, self.cost = self.sess.run([self._train_op, self.loss],
                                      feed_dict={self.im_to_evaluate_net: batch_fi,
                                                 self.q_target: q_target})
+
+        self.cost_his.append(self.cost)???
+        self.learn_step_counter += 1
+
+    def plot_cost(self):
+        import matplotlib.pyplot as plt
+        plt.plot(np.arange(len(self.cost_his)), self.cost_his)
+        plt.ylabel('Cost')
+        plt.xlabel('training steps')
+        plt.show()

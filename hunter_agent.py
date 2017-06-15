@@ -49,86 +49,51 @@ class DeepQNetwork:
         self.cost_his = [] #the error of every step
 
     def _build_net(self):
+        def build_layers(s, collection_names, keep_prob):
+            ## conv1 layer ##
+            W_conv1 = tf.Variable(tf.truncated_normal([8, 8, 4, 32], stddev=0.1), collections=collection_names)
+            b_conv1 = tf.Variable(tf.constant(0.1, shape=[32]), collections=collection_names)
+            conv1 = tf.nn.conv2d(s, W_conv1, strides=[1, 4, 4, 1], padding='SAME')
+            h_conv1 = tf.nn.relu(conv1 + b_conv1)
+            ## conv2 layer ##
+            W_conv2 = tf.Variable(tf.truncated_normal([4, 4, 32, 64], stddev=0.1), collections=collection_names)
+            b_conv2 = tf.Variable(tf.constant(0.1, shape=[64]), collections=collection_names)
+            conv2 = tf.nn.conv2d(h_conv1, W_conv2, strides=[1, 2, 2, 1], padding='SAME')
+            h_conv2 = tf.nn.relu(conv2 + b_conv2)
+            ## conv3 layer ##
+            W_conv3 = tf.Variable(tf.truncated_normal([3, 3, 64, 64], stddev=0.1), collections=collection_names)
+            b_conv3 = tf.Variable(tf.constant(0.1, shape=[64]), collections=collection_names)
+            conv3 = tf.nn.conv2d(h_conv2, W_conv3, strides=[1, 1, 1, 1], padding='SAME')
+            h_conv3 = tf.nn.relu(conv3 + b_conv3)
+            # [n_samples, 11, 11, 64] ->> [n_samples, 7744]
+            h_pool3_flat = tf.reshape(h_conv3, [-1, 7744])
+            ## fc4 layer ##
+            W_fc4 = tf.Variable(tf.truncated_normal([7744, 512], stddev=0.1), collections=collection_names)
+            b_fc4 = tf.Variable(tf.constant(0.1, shape=[512]), collections=collection_names)
+            h_fc4 = tf.nn.relu(tf.matmul(h_pool3_flat, W_fc4) + b_fc4)
+            h_fc4_drop = tf.nn.dropout(h_fc4, keep_prob)
+            ## fc5 layer ##
+            W_fc5 = tf.Variable(tf.truncated_normal([512, self.n_actions*self.n_robot], stddev=0.1), collections=collection_names)
+            b_fc5 = tf.Variable(tf.constant(0.1, shape=[self.n_actions*self.n_robot]), collections=collection_names)
+            h_fc5 = tf.matmul(h_fc4_drop, W_fc5) + b_fc5
+            return h_fc5
+
+        self.im_to_evaluate_net = tf.placeholder(tf.float32, shape=[None, self.w, self.h, self.m],name = 'fi') / 255
+        self.im_to_target_net = tf.placeholder(tf.float32,shape=[None, self.w, self.h, self.m],name='fi_')  # input Next State
+        self.r = tf.placeholder(tf.float32, [None, ], name='r')  # input Reward
+        self.a = tf.placeholder(tf.int32, [None, ], name='a')  # input Action
+        self.keep_prob = tf.placeholder(tf.float32)
+
         # ------------------ build evaluate_net ------------------
-        self.im_to_evaluate_net = tf.placeholder(tf.float32, shape=[None, 84, 84, 4]) / 255  # [10,84,84,4]
-
-        keep_prob = tf.placeholder(tf.float32)
-
         col_eval_net = ['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
-        ## conv1 layer ##
-        W_conv1 = tf.Variable(tf.truncated_normal([8, 8, 4, 32], stddev=0.1),collections = col_eval_net)
-        b_conv1 = tf.Variable(tf.constant(0.1, shape=[32]),collections = col_eval_net)
-        conv1 = tf.nn.conv2d(self.im_to_evaluate_net, W_conv1, strides=[1, 4, 4, 1], padding='SAME')
-        h_conv1 = tf.nn.relu(conv1 + b_conv1)
-
-        ## conv2 layer ##
-        W_conv2 = tf.Variable(tf.truncated_normal([4, 4, 32, 64], stddev=0.1),collections = col_eval_net)
-        b_conv2 = tf.Variable(tf.constant(0.1, shape=[64]),collections = col_eval_net)
-        conv2 = tf.nn.conv2d(h_conv1, W_conv2, strides=[1, 2, 2, 1], padding='SAME')
-        h_conv2 = tf.nn.relu(conv2 + b_conv2)
-
-        ## conv3 layer ##
-        W_conv3 = tf.Variable(tf.truncated_normal([3, 3, 64, 64], stddev=0.1),collections = col_eval_net)
-        b_conv3 = tf.Variable(tf.constant(0.1, shape=[64]),collections = col_eval_net)
-        conv3 = tf.nn.conv2d(h_conv2, W_conv3, strides=[1, 1, 1, 1], padding='SAME')
-        h_conv3 = tf.nn.relu(conv3 + b_conv3)
-
-        # [n_samples, 6, 6, 64] ->> [n_samples, 7744]
-        h_pool3_flat = tf.reshape(h_conv3, [-1, 7744])
-
-        ## fc4 layer ##
-        W_fc4 = tf.Variable(tf.truncated_normal([9216, 4096], stddev=0.1),collections = col_eval_net)
-        b_fc4 = tf.Variable(tf.constant(0.1, shape=[4096]),collections = col_eval_net)
-        h_fc4 = tf.nn.relu(tf.matmul(h_pool3_flat, W_fc4) + b_fc4)
-        h_fc4_drop = tf.nn.dropout(h_fc4, keep_prob)
-
-        ## fc5 layer ##
-        W_fc5 = tf.Variable(tf.truncated_normal([4096, self.n_actions*self.n_robot], stddev=0.1),collections = col_eval_net)
-        b_fc5 = tf.Variable(tf.constant(0.1, shape=[self.n_actions*self.n_robot]),collections = col_eval_net)
-        h_fc5 = tf.matmul(h_fc4_drop, W_fc5) + b_fc5
-        self.q_eval = h_fc5 #所有action的Q组成一个tensor
-
+        self.q_eval = build_layers(self.im_to_evaluate_net, col_eval_net, self.keep_prob)
         self.loss = tf.reduce_mean(tf.squared_difference(self.q_target, self.q_eval))
-        self._train_op = tf.train.RMSPropOptimizer(self.learning_rate,).minimize(self.loss)???
+        self._train_op = tf.train.RMSPropOptimizer(self.learning_rate).minimize(self.loss)
 
         # ------------------ build target_net ------------------
-        self.im_to_target_net = tf.placeholder(tf.float32, shape=[None, 84, 84, 4]) / 255  # [10,84,84,4]
-
-        keep_prob = tf.placeholder(tf.float32)
-
         col_targ_net = ['target_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
-        ## conv1 layer ##
-        W_conv1 = tf.Variable(tf.truncated_normal([8, 8, 4, 32], stddev=0.1),collections = col_targ_net)
-        b_conv1 = tf.Variable(tf.constant(0.1, shape=[32]),collections = col_targ_net)
-        conv1 = tf.nn.conv2d(self.im_to_target_net, W_conv1, strides=[1, 4, 4, 1], padding='SAME')
-        h_conv1 = tf.nn.relu(conv1 + b_conv1)
-
-        ## conv2 layer ##
-        W_conv2 = tf.Variable(tf.truncated_normal([4, 4, 32, 64], stddev=0.1),collections = col_targ_net)
-        b_conv2 = tf.Variable(tf.constant(0.1, shape=[64]),collections = col_targ_net)
-        conv2 = tf.nn.conv2d(h_conv1, W_conv2, strides=[1, 2, 2, 1], padding='SAME')
-        h_conv2 = tf.nn.relu(conv2 + b_conv2)
-
-        ## conv3 layer ##
-        W_conv3 = tf.Variable(tf.truncated_normal([3, 3, 64, 64], stddev=0.1),collections = col_targ_net)
-        b_conv3 = tf.Variable(tf.constant(0.1, shape=[64]),collections = col_targ_net)
-        conv3 = tf.nn.conv2d(h_conv2, W_conv3, strides=[1, 1, 1, 1], padding='SAME')
-        h_conv3 = tf.nn.relu(conv3 + b_conv3)
-
-        # [n_samples, 6, 6, 64] ->> [n_samples, 7744]
-        h_pool3_flat = tf.reshape(h_conv3, [-1, 7744])
-
-        ## fc4 layer ##
-        W_fc4 = tf.Variable(tf.truncated_normal([9216, 4096], stddev=0.1),collections = col_targ_net)
-        b_fc4 = tf.Variable(tf.constant(0.1, shape=[4096]),collections = col_targ_net)
-        h_fc4 = tf.nn.relu(tf.matmul(h_pool3_flat, W_fc4) + b_fc4)
-        h_fc4_drop = tf.nn.dropout(h_fc4, keep_prob)
-
-        ## fc5 layer ##
-        W_fc5 = tf.Variable(tf.truncated_normal([4096, self.n_actions*self.n_robot], stddev=0.1),collections = col_targ_net)
-        b_fc5 = tf.Variable(tf.constant(0.1, shape=[self.n_actions*self.n_robot]),collections = col_targ_net)
-        h_fc5 = tf.matmul(h_fc4_drop, W_fc5) + b_fc5
-        self.q_next = h_fc5
+        self.q_next = build_layers(self.im_to_target_net, col_targ_net, self.keep_prob)
+        self.q_target = self.r + self.gamma * tf.reduce_max(self.q_next, axis=1)
 
 
     def store_transition(self, fi, a, r, fi_):
@@ -138,6 +103,7 @@ class DeepQNetwork:
         self.memory['r'][index] = r
         self.memory['fi_'][index] = fi_
         self.memory_counter += 1
+
 
     def choose_action(self, observation):
         observation = observation[None, self.w,self.h,self.m]???
@@ -193,8 +159,8 @@ class DeepQNetwork:
                                      feed_dict={self.im_to_evaluate_net: batch_fi,
                                                 self.q_target: q_target})
         self.cost_his.append(self.cost)
-
         self.learn_step_counter += 1
+
 
     def plot_cost(self):
         import matplotlib.pyplot as plt
