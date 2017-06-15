@@ -21,46 +21,38 @@ class Escaper_Agent:
                  agent_history_length = 4,
                  learning_rate=0.01,
                  reward_decay=0.9,
-                 e_greedy=0.9,
-                 target_network_update_frequency=300,
-                 memory_size=500,
+                 target_network_update_frequency=10000,
+                 memory_size=50000, # 2.6G
                  batch_size=32,
                  output_graph=False,
                  ):
 
         self.n_actions = n_actions #up down left right
-        self.observation_w = observation_w
-        self.observation_h = observation_h
-        self.agent_history_length = agent_history_length # w*h*m, this is the parameter of m
+        self.w = observation_w
+        self.h = observation_h
+        self.m = agent_history_length # w*h*m, this is the parameter of m
 
         self.batch_size = batch_size
         self.memory_size = memory_size  # replay memory size
-        self.target_network_update_frequency = target_network_update_frequency #target network update frequency
+        self.target_update_frequency = target_network_update_frequency #target network update frequency
         self.gamma = reward_decay
         self.lr = learning_rate
-        self.epsilon = e_greedy
+        self.initial_exploration = 1
+        self.final_exploration = 0.1
+        self.epsilon = self.initial_exploration
 
-        self.memory = pd.DataFrame(columns=self.actions)???
+        self.memory = {'s': np.ones(shape=[memory_size, self.w, self.h, self.m], dtype=np.uint8),#0-255
+                  'a': np.ones(shape=[memory_size, ], dtype=np.int8),
+                  'r': np.ones(shape=[memory_size, ], dtype=np.int8),
+                  's_': np.ones(shape=[memory_size, self.w, self.h, self.m], dtype=np.uint8)}
 
-        # self.n_actions = 4 #up down left right
-        #
-        # self.batch_size = 32
-        # self.memory_size = 1000000  # replay memory size
-        # self.history_length = 4 #agent history length
-        # self.target_network_update_frequency = 10000 #target network update frequency
-        # self.gamma = 0.99  # discount factor
-        # self.action_repeat = 4
-        # self.update_frequency = 4
-        #
+        self.memory_counter = 0
+        self.learn_step_counter = 0
         # self.learning_rate = 0.00025
         # self.gredient_momentum = 0.95
         # self.squared_gredient_momentum = 0.95
         # self.min_squared_gradient = 0.01
-        #
-        # self.initial_exploration = 1
-        # self.final_exploration = 0.1
-        # self.final_exploration_frame = 1000000
-        # self.reply_start_size = 50000
+
 
         self._build_net()# consist of [target_net, evaluate_net]
         self.sess = tf.Session()
@@ -106,10 +98,10 @@ class Escaper_Agent:
 
         # all inputs
         self.s = tf.placeholder(tf.float32,
-                shape=[None, self.observation_w, self.observation_h, self.agent_history_length],
+                shape=[None, self.w, self.h, self.m],
                                 name = 's') / 255
         self.s_ = tf.placeholder(tf.float32,
-                shape=[None, self.observation_w, self.observation_h, self.agent_history_length],
+                shape=[None, self.w, self.h, self.m],
                                  name='s_')  # input Next State
         self.r = tf.placeholder(tf.float32, [None, ], name='r')  # input Reward
         self.a = tf.placeholder(tf.int32, [None, ], name='a')  # input Action
@@ -127,10 +119,12 @@ class Escaper_Agent:
         self.q_target = self.r + self.gamma * tf.reduce_max(self.q_next, axis=1)
 
     def store_transition(self, s, a, r, s_):
-        transition = np.hstack((s, [a, r], s_)) #horizontally stack
-
-        index = self.memory_counter % self.memory_size # replace the old memory with new memory
-        self.memory[index, :] = transition #override the old memory
+        # replace the old memory with new memory
+        index = self.memory_counter % self.memory_size
+        self.memory['s'][index] = s
+        self.memory['a'][index] = a
+        self.memory['r'][index] = r
+        self.memory['s_'][index] = s_
 
         self.memory_counter += 1
 
@@ -139,7 +133,7 @@ class Escaper_Agent:
         #[84,84,3] - > [1,84,84,3]
         observation = observation[np.newaxis, :]
 
-        if np.random.uniform() < self.epsilon: #mao si fan le
+        if np.random.uniform() > self.epsilon:
             # forward feed the observation and get q value for every actions
             actions_value = self.sess.run(self.q_eval, feed_dict={self.s: observation})
             action = np.argmax(actions_value)
@@ -154,30 +148,39 @@ class Escaper_Agent:
 
     def learn(self):
         # check to reeplace target parameters
-        if self.learn_step_counter % self.target_network_update_frequency == 0:
+        if self.learn_step_counter % self.target_update_frequency == 0:
             self._replace_target_params()
-            print('target_params_rplaced')
+            print('target_params_replaced')
+            if self.epsilon < self.final_exploration:
+                self.epsilon += 0.009
+            else:
+                self.epsilon = self.final_exploration
+
 
         # sample batch memory from all memory
         if self.memory_counter > self.memory_size:
             sample_index = np.random.choice(self.memory_size, size=self.batch_size)
         else:
             sample_index = np.random.choice(self.memory_counter, size=self.batch_size)
-        batch_memory = self.memory[sample_index, :]
+
+        batch_s = self.memory['s'][sample_index]
+        batch_a = self.memory['a'][sample_index]
+        batch_r = self.memory['r'][sample_index]
+        batch_s_ = self.memory['s_'][sample_index]
 
         q_next, q_eval = self.sess.run(
             [self.q_next, self.q_eval],
             feed_dict={
-                self.s_: batch_memory[:, -self.n_features:],  # fixed params
-                self.s: batch_memory[:, :self.n_features],  # newest params
+                self.s_: batch_s_,  # fixed params
+                self.s: batch_s,  # newest params
             })
 
         # change q_target w.r.t q_eval's action
         q_target = q_eval.copy()
 
         batch_index = np.arange(self.batch_size, dtype=np.int32)
-        eval_act_index = batch_memory[:, self.n_features].astype(int)
-        reward = batch_memory[:, self.n_features + 1]
+        eval_act_index = batch_a.astype(int)
+        reward = batch_r
 
         q_target[batch_index, eval_act_index] = reward + self.gamma * np.max(q_next, axis=1)
 
@@ -205,5 +208,5 @@ class Escaper_Agent:
 
         # train eval network
         _, self.cost = self.sess.run([self._train_op, self.loss],
-                                     feed_dict={self.s: batch_memory[:, :self.n_features],
+                                     feed_dict={self.s: batch_s,
                                                 self.q_target: q_target})
