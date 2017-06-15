@@ -19,6 +19,7 @@ class DeepQNetwork:
         self.memory_counter = 0
         self.memory = np.zeros((self.memory_size,84*84*4))  # initialize zero memory [s, a, r, s_]
         self.learn_step_counter = 0  # total learning step
+        self.exploration = 1.
 
         self.batch_size = 32
         self.memory_size = 1000000  # replay memory size
@@ -27,7 +28,6 @@ class DeepQNetwork:
         self.gamma = 0.99  # discount factor
         self.action_repeat = 4
         self.update_frequency = 4
-        self.initial_exploration = 1
         self.final_exploration = 0.1
         self.final_exploration_frame = 1000000
         self.replay_start_size = 50000
@@ -150,11 +150,14 @@ class DeepQNetwork:
 
     def learn(self):
         # check to replace target parameters
-        if self.learn_step_counter % self.target_network_update_frequency == 0:
+        if self.learn_step_counter % self.target_network_update_frequency == 0: #self.target_network_update_frequency = 10000
             t_params = tf.get_collection('target_net_params')
             e_params = tf.get_collection('eval_net_params')
             self.sess.run([tf.assign(t, e) for t, e in zip(t_params, e_params)])
             print('target_params_rplaced')
+            if(self.exploration > self.final_exploration):
+                self.exploration -= 0.009
+                print('self.exploration changed to',self.exploration)
 
         # sample batch memory from all memory
         if self.memory_counter > self.memory_size:
