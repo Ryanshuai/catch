@@ -13,26 +13,34 @@ class DeepQNetwork:
     def __init__(self):
         self.n_actions = 4 #up down left right
         self.n_robot = 4
-        self.memory_counter = 0
-        self.memory = np.zeros((self.memory_size,84*84*4))  # initialize zero memory [s, a, r, s_]
-        self.learn_step_counter = 0  # total learning step
-        self.exploration = 1.
 
         self.batch_size = 32
         self.memory_size = 100000  # replay memory size
-        self.history_length = 4 #agent history length
-        self.target_network_update_frequency = 1000 #target network update frequency
+        self.history_length = 4  # agent history length
+        self.target_network_update_frequency = 1000  # target network update frequency
         self.gamma = 0.99  # discount factor
         self.action_repeat = 4
         self.update_frequency = 4
+        self.exploration = 1.  # initial
         self.final_exploration = 0.1
         self.final_exploration_frame = 100000
         self.replay_start_size = 5000
-        #used by RMSProp
+        # used by RMSProp
         self.learning_rate = 0.00025
         self.gredient_momentum = 0.95
         self.squared_gredient_momentum = 0.95
         self.min_squared_gradient = 0.01
+        # counter
+        self.learn_step_counter = 0  # total learning step
+        self.memory_counter = 0
+        # w*h*m, this is the parameter of memory
+        self.w = 84  # observation_w
+        self.h = 84  # observation_h
+        self.m = 4  # agent_history_length
+        self.memory = {'fi': np.ones(shape=[self.memory_size, self.w, self.h, self.m], dtype=np.uint8),#0-255
+                  'a': np.ones(shape=[self.memory_size, ], dtype=np.int8),
+                  'r': np.ones(shape=[self.memory_size, ], dtype=np.int8),
+                  'fi_': np.ones(shape=[self.memory_size, self.w, self.h, self.m], dtype=np.uint8)}
 
         self._build_net()# consist of [target_net, evaluate_net]
         self.sess = tf.Session()
@@ -147,7 +155,7 @@ class DeepQNetwork:
             self.sess.run([tf.assign(t, e) for t, e in zip(t_params, e_params)])
             print('target_params_rplaced')
             if(self.exploration > self.final_exploration):
-                self.exploration -= 0.09
+                self.exploration -= 0.009
                 print('self.exploration changed to',self.exploration)
 
         # sample batch memory from all memory

@@ -14,51 +14,40 @@ tf.set_random_seed(1)
 
 # Deep Q Network off-policy
 class Escaper_Agent:
-    def __init__(self,
-                 n_actions,
-                 observation_w = 84,
-                 observation_h = 84,
-                 agent_history_length = 4,
-                 learning_rate=0.01,
-                 reward_decay=0.9,
-                 target_network_update_frequency=10000,
-                 memory_size=50000, # 2.6G
-                 batch_size=32,
-                 output_graph=False,
-                 ):
+    def __init__(self):
+        self.n_actions = 4 #up down left right
+        self.n_robot = 4
 
-        self.n_actions = n_actions #up down left right
-        self.w = observation_w
-        self.h = observation_h
-        self.m = agent_history_length # w*h*m, this is the parameter of m
-
-        self.batch_size = batch_size
-        self.memory_size = memory_size  # replay memory size
-        self.target_update_frequency = target_network_update_frequency #target network update frequency
-        self.gamma = reward_decay
-        self.lr = learning_rate
-        self.initial_exploration = 1
+        self.batch_size = 32
+        self.memory_size = 100000  # replay memory size
+        self.history_length = 4 #agent history length
+        self.target_network_update_frequency = 1000 #target network update frequency
+        self.gamma = 0.99  # discount factor
+        self.action_repeat = 4
+        self.update_frequency = 4
+        self.exploration = 1. #initial
         self.final_exploration = 0.1
-        self.epsilon = self.initial_exploration
-
-        self.memory = {'s': np.ones(shape=[memory_size, self.w, self.h, self.m], dtype=np.uint8),#0-255
-                  'a': np.ones(shape=[memory_size, ], dtype=np.int8),
-                  'r': np.ones(shape=[memory_size, ], dtype=np.int8),
-                  's_': np.ones(shape=[memory_size, self.w, self.h, self.m], dtype=np.uint8)}
-
+        self.final_exploration_frame = 100000
+        self.replay_start_size = 5000
+        #used by RMSProp
+        self.learning_rate = 0.00025
+        self.gredient_momentum = 0.95
+        self.squared_gredient_momentum = 0.95
+        self.min_squared_gradient = 0.01
+        #counter
+        self.learn_step_counter = 0  # total learning step
         self.memory_counter = 0
-        self.learn_step_counter = 0
-        # self.learning_rate = 0.00025
-        # self.gredient_momentum = 0.95
-        # self.squared_gredient_momentum = 0.95
-        # self.min_squared_gradient = 0.01
-
+        # w*h*m, this is the parameter of memory
+        self.w = 84 #observation_w
+        self.h = 84 #observation_h
+        self.m = 4 #agent_history_length
+        self.memory = {'fi': np.ones(shape=[self.memory_size, self.w, self.h, self.m], dtype=np.uint8),#0-255
+                  'a': np.ones(shape=[self.memory_size, ], dtype=np.int8),
+                  'r': np.ones(shape=[self.memory_size, ], dtype=np.int8),
+                  'fi_': np.ones(shape=[self.memory_size, self.w, self.h, self.m], dtype=np.uint8)}
 
         self._build_net()# consist of [target_net, evaluate_net]
         self.sess = tf.Session()
-
-        if output_graph:
-            tf.summary.FileWriter("logs/", self.sess.graph)
         self.sess.run(tf.global_variables_initializer())
 
     def _build_net(self):
@@ -118,13 +107,13 @@ class Escaper_Agent:
         self.q_next = build_layers(self.s_, c_names, self.keep_prob)
         self.q_target = self.r + self.gamma * tf.reduce_max(self.q_next, axis=1)
 
-    def store_transition(self, s, a, r, s_):
+    def store_transition(self, fi, a, r, fi_):
         # replace the old memory with new memory
         index = self.memory_counter % self.memory_size
-        self.memory['s'][index] = s
+        self.memory['fi'][index] = fi
         self.memory['a'][index] = a
         self.memory['r'][index] = r
-        self.memory['s_'][index] = s_
+        self.memory['fi_'][index] = fi_
 
         self.memory_counter += 1
 
@@ -141,20 +130,17 @@ class Escaper_Agent:
             action = np.random.randint(0, self.n_actions)
         return action
 
-    def _replace_target_params(self):
-        t_params = tf.get_collection('target_net_params')
-        e_params = tf.get_collection('eval_net_params')
-        self.sess.run([tf.assign(t, e) for t, e in zip(t_params, e_params)])
 
     def learn(self):
         # check to reeplace target parameters
         if self.learn_step_counter % self.target_update_frequency == 0:
-            self._replace_target_params()
+            t_params = tf.get_collection('target_net_params')
+            e_params = tf.get_collection('eval_net_params')
+            self.sess.run([tf.assign(t, e) for t, e in zip(t_params, e_params)])
             print('target_params_replaced')
-            if self.epsilon < self.final_exploration:
-                self.epsilon += 0.009
-            else:
-                self.epsilon = self.final_exploration
+            if(self.exploration > self.final_exploration):
+                self.exploration -= 0.009
+                print('self.exploration changed to',self.exploration)
 
 
         # sample batch memory from all memory
@@ -184,27 +170,6 @@ class Escaper_Agent:
 
         q_target[batch_index, eval_act_index] = reward + self.gamma * np.max(q_next, axis=1)
 
-        """
-        For example in this batch I have 2 samples and 3 actions:
-        q_eval =
-        [[1, 2, 3],
-         [4, 5, 6]]
-        q_target = q_eval =
-        [[1, 2, 3],
-         [4, 5, 6]]
-        Then change q_target with the real q_target value w.r.t the q_eval's action.
-        For example in:
-            sample 0, I took action 0, and the max q_target value is -1;
-            sample 1, I took action 2, and the max q_target value is -2:
-        q_target =
-        [[-1, 2, 3],
-         [4, 5, -2]]
-        So the (q_target - q_eval) becomes:
-        [[(-1)-(1), 0, 0],
-         [0, 0, (-2)-(6)]]
-        We then backpropagate this error w.r.t the corresponding action to network,
-        leave other action as error=0 cause we didn't choose it.
-        """
 
         # train eval network
         _, self.cost = self.sess.run([self._train_op, self.loss],
