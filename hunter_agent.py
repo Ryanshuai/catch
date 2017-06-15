@@ -7,9 +7,8 @@ Using Tensorflow to build the neural network.
 import numpy as np
 import tensorflow as tf
 
-
 # Deep Q Network off-policy
-class DeepQNetwork:
+class hunter_Agent:
     def __init__(self):
         self.n_actions = 4 #up down left right
         self.n_robot = 4
