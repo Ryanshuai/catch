@@ -46,6 +46,7 @@ class Escaper_Agent:
         self.sess = tf.Session()
         self.sess.run(tf.global_variables_initializer())
 
+
     def _build_net(self):
         def build_layers(s, collection_names, keep_prob):
             ## conv1 layer ##
@@ -53,28 +54,23 @@ class Escaper_Agent:
             b_conv1 = tf.Variable(tf.constant(0.1, shape=[32]), collections=collection_names)
             conv1 = tf.nn.conv2d(s, W_conv1, strides=[1, 4, 4, 1], padding='SAME')
             h_conv1 = tf.nn.relu(conv1 + b_conv1)
-
             ## conv2 layer ##
             W_conv2 = tf.Variable(tf.truncated_normal([4, 4, 32, 64], stddev=0.1), collections=collection_names)
             b_conv2 = tf.Variable(tf.constant(0.1, shape=[64]), collections=collection_names)
             conv2 = tf.nn.conv2d(h_conv1, W_conv2, strides=[1, 2, 2, 1], padding='SAME')
             h_conv2 = tf.nn.relu(conv2 + b_conv2)
-
             ## conv3 layer ##
             W_conv3 = tf.Variable(tf.truncated_normal([3, 3, 64, 64], stddev=0.1), collections=collection_names)
             b_conv3 = tf.Variable(tf.constant(0.1, shape=[64]), collections=collection_names)
             conv3 = tf.nn.conv2d(h_conv2, W_conv3, strides=[1, 1, 1, 1], padding='SAME')
             h_conv3 = tf.nn.relu(conv3 + b_conv3)
-
             # [n_samples, 11, 11, 64] ->> [n_samples, 7744]
             h_pool3_flat = tf.reshape(h_conv3, [-1, 7744])
-
             ## fc4 layer ##
             W_fc4 = tf.Variable(tf.truncated_normal([7744, 512], stddev=0.1), collections=collection_names)
             b_fc4 = tf.Variable(tf.constant(0.1, shape=[512]), collections=collection_names)
             h_fc4 = tf.nn.relu(tf.matmul(h_pool3_flat, W_fc4) + b_fc4)
             h_fc4_drop = tf.nn.dropout(h_fc4, keep_prob)
-
             ## fc5 layer ##
             W_fc5 = tf.Variable(tf.truncated_normal([512, self.n_actions*self.n_robot], stddev=0.1), collections=collection_names)
             b_fc5 = tf.Variable(tf.constant(0.1, shape=[self.n_actions*self.n_robot]), collections=collection_names)
@@ -143,9 +139,12 @@ class Escaper_Agent:
         batch_r = self.memory['r'][sample_index]
         batch_fi_ = self.memory['fi_'][sample_index]
 
-        q_next, q_eval = self.sess.run([self.q_next, self.q_eval],
-            feed_dict={self.im_to_evaluate_net: batch_fi,  # newest params
-                        self.im_to_target_net: batch_fi_,})  # fixed params
+        q_eval,q_next = self.sess.run(
+            [self.q_eval,self.q_next],
+            feed_dict={
+                self.im_to_evaluate_net: batch_fi, # newest params
+                self.im_to_target_net: batch_fi_, # fixed params
+            })
 
         # change q_target w.r.t q_eval's action
         q_target = q_eval.copy()

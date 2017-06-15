@@ -44,7 +44,6 @@ class hunter_Agent:
 
         self._build_net()# consist of [target_net, evaluate_net]
         self.sess = tf.Session()
-
         self.sess.run(tf.global_variables_initializer())
 
 
@@ -138,11 +137,11 @@ class hunter_Agent:
         batch_r = self.memory['r'][sample_index]
         batch_fi_ = self.memory['fi_'][sample_index]
 
-        q_next, q_eval = self.sess.run(
-            [self.q_next, self.q_eval],
+        q_eval,q_next = self.sess.run(
+            [self.q_eval,self.q_next],
             feed_dict={
-                self.im_to_evaluate_net: batch_fi,  # fixed params
-                self.im_to_target_net: batch_fi_,  # newest params
+                self.im_to_evaluate_net: batch_fi, # newest params
+                self.im_to_target_net: batch_fi_, # fixed params
             })
 
         # change q_target w.r.t q_eval's action
@@ -153,7 +152,6 @@ class hunter_Agent:
         reward = batch_r
 
         q_target[batch_index, eval_act_index] = reward + self.gamma * np.max(q_next, axis=1)
-
 
         # train eval network
         _, self.cost = self.sess.run([self._train_op, self.loss],
