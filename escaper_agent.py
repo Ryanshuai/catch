@@ -86,25 +86,25 @@ class Escaper_Agent:
             return h_fc5
 
         # all inputs
-        self.s = tf.placeholder(tf.float32,
-                shape=[None, self.w, self.h, self.m],
-                                name = 's') / 255
-        self.s_ = tf.placeholder(tf.float32,
-                shape=[None, self.w, self.h, self.m],
-                                 name='s_')  # input Next State
+        self.im_to_evaluate_net = tf.placeholder(tf.float32,
+                                                 shape=[None, self.w, self.h, self.m],
+                                                 name = 's') / 255
+        self.im_to_target_net = tf.placeholder(tf.float32,
+                                               shape=[None, self.w, self.h, self.m],
+                                               name='s_')  # input Next State
         self.r = tf.placeholder(tf.float32, [None, ], name='r')  # input Reward
         self.a = tf.placeholder(tf.int32, [None, ], name='a')  # input Action
         self.keep_prob = tf.placeholder(tf.float32)
 
         # ------------------ build evaluate_net ------------------
-        c_names = ['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
-        self.q_eval = build_layers(self.s, c_names, self.keep_prob)
+        col_eval_net = ['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
+        self.q_eval = build_layers(self.im_to_evaluate_net, col_eval_net, self.keep_prob)
         self.loss = tf.reduce_mean(tf.squared_difference(self.q_target, self.q_eval))
-        self._train_op = tf.train.RMSPropOptimizer(self.lr).minimize(self.loss)
+        self._train_op = tf.train.RMSPropOptimizer(self.learning_rate).minimize(self.loss)
 
         # ------------------ build target_net ------------------
-        c_names = ['target_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
-        self.q_next = build_layers(self.s_, c_names, self.keep_prob)
+        col_targ_net = ['target_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
+        self.q_next = build_layers(self.im_to_target_net, col_targ_net, self.keep_prob)
         self.q_target = self.r + self.gamma * tf.reduce_max(self.q_next, axis=1)
 
     def store_transition(self, fi, a, r, fi_):
@@ -114,26 +114,22 @@ class Escaper_Agent:
         self.memory['a'][index] = a
         self.memory['r'][index] = r
         self.memory['fi_'][index] = fi_
-
         self.memory_counter += 1
 
     def choose_action(self, observation):
-        # to have batch dimension when feed into tf placeholder
-        #[84,84,3] - > [1,84,84,3]
-        observation = observation[np.newaxis, :]
-
-        if np.random.uniform() > self.epsilon:
-            # forward feed the observation and get q value for every actions
-            actions_value = self.sess.run(self.q_eval, feed_dict={self.s: observation})
-            action = np.argmax(actions_value)
-        else:
+        #[84,84,1] - > [1,84,84,4]
+        observation = observation[np.newaxis, :]???
+        if np.random.uniform() < self.exploration: #exploration
             action = np.random.randint(0, self.n_actions)
+        else:
+            actions_value = self.sess.run(self.q_eval, feed_dict={self.im_to_evaluate_net: observation})
+            action = np.argmax(actions_value)
         return action
 
 
     def learn(self):
         # check to reeplace target parameters
-        if self.learn_step_counter % self.target_update_frequency == 0:
+        if self.learn_step_counter % self.target_network_update_frequency == 0:
             t_params = tf.get_collection('target_net_params')
             e_params = tf.get_collection('eval_net_params')
             self.sess.run([tf.assign(t, e) for t, e in zip(t_params, e_params)])
@@ -142,23 +138,22 @@ class Escaper_Agent:
                 self.exploration -= 0.009
                 print('self.exploration changed to',self.exploration)
 
-
         # sample batch memory from all memory
         if self.memory_counter > self.memory_size:
             sample_index = np.random.choice(self.memory_size, size=self.batch_size)
         else:
             sample_index = np.random.choice(self.memory_counter, size=self.batch_size)
 
-        batch_s = self.memory['s'][sample_index]
+        batch_fi = self.memory['fi'][sample_index]
         batch_a = self.memory['a'][sample_index]
         batch_r = self.memory['r'][sample_index]
-        batch_s_ = self.memory['s_'][sample_index]
+        batch_fi_ = self.memory['fi_'][sample_index]
 
         q_next, q_eval = self.sess.run(
             [self.q_next, self.q_eval],
             feed_dict={
-                self.s_: batch_s_,  # fixed params
-                self.s: batch_s,  # newest params
+                self.im_to_evaluate_net: batch_fi,  # newest params
+                self.im_to_target_net: batch_fi_,  # fixed params
             })
 
         # change q_target w.r.t q_eval's action
@@ -170,8 +165,7 @@ class Escaper_Agent:
 
         q_target[batch_index, eval_act_index] = reward + self.gamma * np.max(q_next, axis=1)
 
-
         # train eval network
         _, self.cost = self.sess.run([self._train_op, self.loss],
-                                     feed_dict={self.s: batch_s,
+                                     feed_dict={self.im_to_evaluate_net: batch_fi,
                                                 self.q_target: q_target})

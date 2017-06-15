@@ -132,13 +132,15 @@ class DeepQNetwork:
 
 
     def store_transition(self, fi, a, r, fi_):
-        transition = np.hstack((fi, [a, r], fi_)) #horizontally stack
         index = self.memory_counter % self.memory_size # replace the old memory with new memory
-        self.memory[index, :] = transition #override the old memory
+        self.memory['fi'][index] = fi
+        self.memory['a'][index] = a
+        self.memory['r'][index] = r
+        self.memory['fi_'][index] = fi_
         self.memory_counter += 1
 
     def choose_action(self, observation):
-        observation = observation[None, 84*84*4]
+        observation = observation[None, self.w,self.h,self.m]???
         if np.random.uniform() < self.exploration: #exploration
             action = np.random.randint(0, self.n_actions)
         else:
@@ -163,28 +165,32 @@ class DeepQNetwork:
             sample_index = np.random.choice(self.memory_size, size=self.batch_size)
         else:
             sample_index = np.random.choice(self.memory_counter, size=self.batch_size)
-        batch_memory = self.memory[sample_index, :]
+
+        batch_fi = self.memory['fi'][sample_index]
+        batch_a = self.memory['a'][sample_index]
+        batch_r = self.memory['r'][sample_index]
+        batch_fi_ = self.memory['fi_'][sample_index]
 
         q_next, q_eval = self.sess.run(
             [self.q_next, self.q_eval],
             feed_dict={
-                self.im_to_evaluate_net: batch_memory[:, 84*84*4],  # fixed params
-                self.im_to_target_net: batch_memory[:, 84*84*4],  # newest params
+                self.im_to_evaluate_net: batch_fi,  # fixed params
+                self.im_to_target_net: batch_fi_,  # newest params
             })
 
         # change q_target w.r.t q_eval's action
         q_target = q_eval.copy()
 
         batch_index = np.arange(self.batch_size, dtype=np.int32)
-        eval_act_index = batch_memory[:, 84*84*4].astype(int)
-        reward = batch_memory[:, 84*84*4]
+        eval_act_index = batch_a.astype(int)
+        reward = batch_r
 
         q_target[batch_index, eval_act_index] = reward + self.gamma * np.max(q_next, axis=1)
 
 
         # train eval network
         _, self.cost = self.sess.run([self._train_op, self.loss],
-                                     feed_dict={self.im_to_evaluate_net: batch_memory[:, 84*84*4],
+                                     feed_dict={self.im_to_evaluate_net: batch_fi,
                                                 self.q_target: q_target})
         self.cost_his.append(self.cost)
 
