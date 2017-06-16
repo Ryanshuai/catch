@@ -158,6 +158,6 @@ class Hunter_Agent:
     def plot_cost(self):
         import matplotlib.pyplot as plt
         plt.plot(np.arange(len(self.cost_his)), self.cost_his)
-        plt.ylabel('Cost')
         plt.xlabel('training steps')
+        plt.ylabel('Cost')
         plt.show()

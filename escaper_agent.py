@@ -129,10 +129,10 @@ class Escaper_Agent:
             t_params = tf.get_collection('target_net_params')
             e_params = tf.get_collection('eval_net_params')
             self.sess.run([tf.assign(t, e) for t, e in zip(t_params, e_params)])
-            print('target_params_replaced')
+            #print('target_params_replaced')
             if(self.exploration > self.final_exploration):
                 self.exploration -= 0.009
-                print('self.exploration changed to',self.exploration)
+                #print('self.exploration changed to',self.exploration)
 
         if self.memory_counter > self.replay_start_size:
             self.learn_step_counter += 1
@@ -155,9 +155,6 @@ class Escaper_Agent:
             self.cost_his.append(cost)
 
 
-    def plot_cost(self):
-        import matplotlib.pyplot as plt
-        plt.plot(np.arange(len(self.cost_his)), self.cost_his)
-        plt.ylabel('Cost')
-        plt.xlabel('training steps')
-        plt.show()
+    def save_cost(self):
+        print (self.cost_his)
+        self.cost_his = []
