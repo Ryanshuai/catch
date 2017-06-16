@@ -98,7 +98,8 @@ class Escaper_Agent:
 
 
     def store_transition(self, fi, a, r, fi_):
-        # replace the old memory with new memory
+        if self.memory_counter == 2*self.memory_size:
+            self.memory_counter = self.memory_size
         index = self.memory_counter % self.memory_size
         self.memory['fi'][index] = fi
         self.memory['a'][index] = a
@@ -119,7 +120,8 @@ class Escaper_Agent:
 
     def learn(self):
         # check to reeplace target parameters
-        if self.learn_step_counter % self.target_network_update_frequency == 0:
+        if self.learn_step_counter % self.target_network_update_frequency == 0: #self.target_network_update_frequency = 1000
+            self.learn_step_counter = 0
             t_params = tf.get_collection('target_net_params')
             e_params = tf.get_collection('eval_net_params')
             self.sess.run([tf.assign(t, e) for t, e in zip(t_params, e_params)])
@@ -128,37 +130,38 @@ class Escaper_Agent:
                 self.exploration -= 0.009
                 print('self.exploration changed to',self.exploration)
 
-        # sample batch memory from all memory
-        if self.memory_counter > self.memory_size:
-            sample_index = np.random.choice(self.memory_size, size=self.batch_size)
-        else:
-            sample_index = np.random.choice(self.memory_counter, size=self.batch_size)
+        if self.memory_counter > self.replay_start_size:
+            self.learn_step_counter += 1
+            # sample batch memory from all memory
+            if self.memory_counter > self.memory_size:
+                sample_index = np.random.choice(self.memory_size, size=self.batch_size)
+            else:
+                sample_index = np.random.choice(self.memory_counter, size=self.batch_size)
 
-        batch_fi = self.memory['fi'][sample_index]
-        batch_a = self.memory['a'][sample_index]
-        batch_r = self.memory['r'][sample_index]
-        batch_fi_ = self.memory['fi_'][sample_index]
+            batch_fi = self.memory['fi'][sample_index]
+            batch_a = self.memory['a'][sample_index]
+            batch_r = self.memory['r'][sample_index]
+            batch_fi_ = self.memory['fi_'][sample_index]
 
-        q_eval,q_next = self.sess.run(
-            [self.q_eval,self.q_next],
-            feed_dict={
-                self.im_to_evaluate_net: batch_fi, # newest params
-                self.im_to_target_net: batch_fi_, # fixed params
-            })
+            q_eval,q_next = self.sess.run(
+                [self.q_eval,self.q_next],
+                feed_dict={
+                    self.im_to_evaluate_net: batch_fi, # newest params
+                    self.im_to_target_net: batch_fi_, # fixed params
+                })
 
-        # change q_target w.r.t q_eval's action
-        q_target = q_eval.copy()
-        batch_index = np.arange(self.batch_size, dtype=np.int32)
-        eval_act_index = batch_a.astype(int)
-        reward = batch_r
-        q_target[batch_index, eval_act_index] = reward + self.gamma * np.max(q_next, axis=1)
-        # train eval network
-        _, self.cost = self.sess.run([self._train_op, self.loss],
-                                     feed_dict={self.im_to_evaluate_net: batch_fi,
-                                                self.q_target: q_target})
+            # change q_target w.r.t q_eval's action
+            q_target = q_eval.copy()
+            batch_index = np.arange(self.batch_size, dtype=np.int32)
+            eval_act_index = batch_a.astype(int)
+            reward = batch_r
+            q_target[batch_index, eval_act_index] = reward + self.gamma * np.max(q_next, axis=1)
+            # train eval network
+            _, self.cost = self.sess.run([self._train_op, self.loss],
+                                         feed_dict={self.im_to_evaluate_net: batch_fi,
+                                                    self.q_target: q_target})
 
-        self.cost_his.append(self.cost)
-        self.learn_step_counter += 1
+            self.cost_his.append(self.cost)
 
 
     def plot_cost(self):
