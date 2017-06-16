@@ -8,35 +8,35 @@ import numpy as np
 import tensorflow as tf
 
 # Deep Q Network off-policy
-class hunter_Agent:
+class Hunter_Agent:
     def __init__(self):
         self.n_actions = 4 #up down left right
         self.n_robot = 4
 
         self.batch_size = 32
         self.memory_size = 100000  # replay memory size
-        self.history_length = 4  # agent history length
-        self.target_network_update_frequency = 1000  # target network update frequency
+        self.history_length = 4 #agent history length
+        self.target_network_update_frequency = 1000 #target network update frequency
         self.gamma = 0.99  # discount factor
         self.action_repeat = 4
         self.update_frequency = 4
-        self.exploration = 1.  # initial
+        self.exploration = 1. #initial
         self.final_exploration = 0.1
         self.final_exploration_frame = 100000
         self.replay_start_size = 5000
         self.cost_his = []  # the error of every step
-        # used by RMSProp
+        #used by RMSProp
         self.lr = 0.00025
         self.gredient_momentum = 0.95
         self.squared_gredient_momentum = 0.95
         self.min_squared_gradient = 0.01
-        # counter
+        #counter
         self.learn_step_counter = 0  # total learning step
         self.memory_counter = 0
         # w*h*m, this is the parameter of memory
-        self.w = 84  # observation_w
-        self.h = 84  # observation_h
-        self.m = 4  # agent_history_length
+        self.w = 84 #observation_w
+        self.h = 84 #observation_h
+        self.m = 4 #agent_history_length
         self.memory = {'fi': np.ones(shape=[self.memory_size, self.w, self.h, self.m], dtype=np.uint8),#0-255
                   'a': np.ones(shape=[self.memory_size, ], dtype=np.int8),
                   'r': np.ones(shape=[self.memory_size, ], dtype=np.int8),
@@ -77,23 +77,28 @@ class hunter_Agent:
             h_fc5 = tf.matmul(h_fc4_drop, W_fc5) + b_fc5
             return h_fc5
 
-        self.im_to_evaluate_net = tf.placeholder(tf.float32, shape=[None, self.w, self.h, self.m],name = 'fi') / 255
-        self.im_to_target_net = tf.placeholder(tf.float32,shape=[None, self.w, self.h, self.m],name='fi_')  # input Next State
-        self.r = tf.placeholder(tf.float32, [None, ], name='r')  # input Reward
-        self.a = tf.placeholder(tf.int32, [None, ], name='a')  # input Action
+        # all inputs
+        self.batch_fi = tf.placeholder(tf.float32, shape=[None, self.w, self.h, self.m], name ='fi') / 255
+        self.batch_fi_ = tf.placeholder(tf.float32, shape=[None, self.w, self.h, self.m], name='fi_')  / 255 # input Next State
+        self.batch_r = tf.placeholder(tf.float32, [None, ], name='r')  # input Reward
+        self.batch_a = tf.placeholder(tf.int32, [None, ], name='a')  # input Action
         self.keep_prob = tf.placeholder(tf.float32)
 
         # ------------------ build evaluate_net ------------------
         col_eval_net = ['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
-        self.q_eval = build_layers(self.im_to_evaluate_net, col_eval_net, self.keep_prob)
+        self.q_eval = build_layers(self.batch_fi, col_eval_net, self.keep_prob)
 
         # ------------------ build target_net ------------------
         col_targ_net = ['target_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
-        self.q_next = build_layers(self.im_to_target_net, col_targ_net, self.keep_prob)
-        self.q_target = tf.placeholder(tf.float32, [None, ])
+        self.q_next = build_layers(self.batch_fi_, col_targ_net, self.keep_prob)
 
-        self.loss = tf.reduce_mean(tf.squared_difference(self.q_target, self.q_eval))
-        self._train_op = tf.train.RMSPropOptimizer(self.lr, decay=0.95, momentum=0.95, epsilon=0.01).minimize(self.loss)
+        # ------------------ compute who to train ------------------
+        self.q_target = self.batch_r + self.gamma * tf.reduce_max(self.q_next, axis=1, name='Qmax_s_')
+        a_one_hot = tf.one_hot(self.batch_a, depth=self.n_actions, dtype=tf.float32)
+        self.q_eval_wrt_a = tf.reduce_sum(self.q_eval * a_one_hot, axis=1)  # shape=(None, )
+
+        self.loss = tf.reduce_mean(tf.squared_difference(self.q_target, self.q_eval_wrt_a))
+        self._train_op = tf.train.RMSPropOptimizer(self.lr).minimize(self.loss)
 
 
     def store_transition(self, fi, a, r, fi_):
@@ -112,19 +117,19 @@ class hunter_Agent:
         if np.random.uniform() < self.exploration: #exploration
             action = np.random.randint(0, self.n_actions)
         else:
-            actions_value = self.sess.run(self.q_eval, feed_dict={self.im_to_evaluate_net: observation})
+            actions_value = self.sess.run(self.q_eval, feed_dict={self.batch_fi: observation})
             action = np.argmax(actions_value)
         return action
 
 
     def learn(self):
-        # check to replace target parameters
+        # check to reeplace target parameters
         if self.learn_step_counter % self.target_network_update_frequency == 0: #self.target_network_update_frequency = 1000
             self.learn_step_counter = 0
             t_params = tf.get_collection('target_net_params')
             e_params = tf.get_collection('eval_net_params')
             self.sess.run([tf.assign(t, e) for t, e in zip(t_params, e_params)])
-            print('target_params_rplaced')
+            print('target_params_replaced')
             if(self.exploration > self.final_exploration):
                 self.exploration -= 0.009
                 print('self.exploration changed to',self.exploration)
@@ -137,32 +142,17 @@ class hunter_Agent:
             else:
                 sample_index = np.random.choice(self.memory_counter, size=self.batch_size)
 
-            batch_fi = self.memory['fi'][sample_index]
-            batch_a = self.memory['a'][sample_index]
-            batch_r = self.memory['r'][sample_index]
-            batch_fi_ = self.memory['fi_'][sample_index]
-
-            q_eval,q_next = self.sess.run(
-                [self.q_eval,self.q_next],
+            # train eval network
+            _, cost = self.sess.run(
+                [self._train_op, self.loss],
                 feed_dict={
-                    self.im_to_evaluate_net: batch_fi, # newest params
-                    self.im_to_target_net: batch_fi_, # fixed params
+                    self.batch_fi: self.memory['fi'][sample_index],
+                    self.batch_a: self.memory['a'][sample_index],
+                    self.batch_r: self.memory['r'][sample_index],
+                    self.batch_fi_: self.memory['fi_'][sample_index],
                 })
 
-            # change q_target w.r.t q_eval's action
-            q_target = q_eval.copy()
-
-            batch_index = np.arange(self.batch_size, dtype=np.int32)
-            eval_act_index = batch_a.astype(int)
-            reward = batch_r
-
-            q_target[batch_index, eval_act_index] = reward + self.gamma * np.max(q_next, axis=1)
-
-            # train eval network
-            _, self.cost = self.sess.run([self._train_op, self.loss],
-                                         feed_dict={self.im_to_evaluate_net: batch_fi,
-                                                    self.q_target: q_target})
-            self.cost_his.append(self.cost)
+            self.cost_his.append(cost)
 
 
     def plot_cost(self):

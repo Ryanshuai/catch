@@ -78,22 +78,26 @@ class Escaper_Agent:
             return h_fc5
 
         # all inputs
-        self.im_to_evaluate_net = tf.placeholder(tf.float32, shape=[None, self.w, self.h, self.m],name = 'fi') / 255
-        self.im_to_target_net = tf.placeholder(tf.float32,shape=[None, self.w, self.h, self.m],name='fi_')  # input Next State
-        self.r = tf.placeholder(tf.float32, [None, ], name='r')  # input Reward
-        self.a = tf.placeholder(tf.int32, [None, ], name='a')  # input Action
+        self.batch_fi = tf.placeholder(tf.float32, shape=[None, self.w, self.h, self.m], name ='fi') / 255
+        self.batch_fi_ = tf.placeholder(tf.float32, shape=[None, self.w, self.h, self.m], name='fi_')  / 255 # input Next State
+        self.batch_r = tf.placeholder(tf.float32, [None, ], name='r')  # input Reward
+        self.batch_a = tf.placeholder(tf.int32, [None, ], name='a')  # input Action
         self.keep_prob = tf.placeholder(tf.float32)
 
         # ------------------ build evaluate_net ------------------
         col_eval_net = ['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
-        self.q_eval = build_layers(self.im_to_evaluate_net, col_eval_net, self.keep_prob)
+        self.q_eval = build_layers(self.batch_fi, col_eval_net, self.keep_prob)
 
         # ------------------ build target_net ------------------
         col_targ_net = ['target_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
-        self.q_next = build_layers(self.im_to_target_net, col_targ_net, self.keep_prob)
-        self.q_target = tf.placeholder(tf.float32, [None, ])
+        self.q_next = build_layers(self.batch_fi_, col_targ_net, self.keep_prob)
 
-        self.loss = tf.reduce_mean(tf.squared_difference(self.q_target, self.q_eval))
+        # ------------------ compute who to train ------------------
+        self.q_target = self.batch_r + self.gamma * tf.reduce_max(self.q_next, axis=1, name='Qmax_s_')
+        a_one_hot = tf.one_hot(self.batch_a, depth=self.n_actions, dtype=tf.float32)
+        self.q_eval_wrt_a = tf.reduce_sum(self.q_eval * a_one_hot, axis=1)  # shape=(None, )
+
+        self.loss = tf.reduce_mean(tf.squared_difference(self.q_target, self.q_eval_wrt_a))
         self._train_op = tf.train.RMSPropOptimizer(self.lr).minimize(self.loss)
 
 
@@ -113,7 +117,7 @@ class Escaper_Agent:
         if np.random.uniform() < self.exploration: #exploration
             action = np.random.randint(0, self.n_actions)
         else:
-            actions_value = self.sess.run(self.q_eval, feed_dict={self.im_to_evaluate_net: observation})
+            actions_value = self.sess.run(self.q_eval, feed_dict={self.batch_fi: observation})
             action = np.argmax(actions_value)
         return action
 
@@ -138,30 +142,17 @@ class Escaper_Agent:
             else:
                 sample_index = np.random.choice(self.memory_counter, size=self.batch_size)
 
-            batch_fi = self.memory['fi'][sample_index]
-            batch_a = self.memory['a'][sample_index]
-            batch_r = self.memory['r'][sample_index]
-            batch_fi_ = self.memory['fi_'][sample_index]
-
-            q_eval,q_next = self.sess.run(
-                [self.q_eval,self.q_next],
+            # train eval network
+            _, cost = self.sess.run(
+                [self._train_op, self.loss],
                 feed_dict={
-                    self.im_to_evaluate_net: batch_fi, # newest params
-                    self.im_to_target_net: batch_fi_, # fixed params
+                    self.batch_fi: self.memory['fi'][sample_index],
+                    self.batch_a: self.memory['a'][sample_index],
+                    self.batch_r: self.memory['r'][sample_index],
+                    self.batch_fi_: self.memory['fi_'][sample_index],
                 })
 
-            # change q_target w.r.t q_eval's action
-            q_target = q_eval.copy()
-            batch_index = np.arange(self.batch_size, dtype=np.int32)
-            eval_act_index = batch_a.astype(int)
-            reward = batch_r
-            q_target[batch_index, eval_act_index] = reward + self.gamma * np.max(q_next, axis=1)
-            # train eval network
-            _, self.cost = self.sess.run([self._train_op, self.loss],
-                                         feed_dict={self.im_to_evaluate_net: batch_fi,
-                                                    self.q_target: q_target})
-
-            self.cost_his.append(self.cost)
+            self.cost_his.append(cost)
 
 
     def plot_cost(self):
