@@ -1,5 +1,5 @@
 """
-This part of code is the DQN brain, which is a brain of the agent.
+This part of code is the Hunter_Agent.
 All decisions are made in here.
 Using Tensorflow to build the neural network.
 """
