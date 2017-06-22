@@ -161,4 +161,4 @@ class Hunter_Agent:
                             self.batch_a: self.memory['a'][sample_index]})
             self.train_step_counter += 1
                             
-        return self.actions_value[0],self.actions_value[1], self.exploration,self.train_step_counter, self.update_counter,self.outloss
+        return self.actions_value, self.exploration,self.train_step_counter, self.update_counter,self.outloss
