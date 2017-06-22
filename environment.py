@@ -36,7 +36,7 @@ class ENV:
         x = [i[0] for i in reletive_dis]
         y = [i[1] for i in reletive_dis]
         angle_e_h = np.arctan2(y, x)
-        angle_e_h = angle_e_h[np.argsort(angle_e_h)]
+        angle_e_h.sort()
         error_angle_e_h = angle_e_h[list(range(1,len(angle_e_h)))+[0]] - angle_e_h
         error_angle_e_h[len(error_angle_e_h) - 1] += 2 * np.pi
         if any([abs(i)>np.pi*3/4 for i in error_angle_e_h]):
