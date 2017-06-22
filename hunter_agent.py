@@ -37,7 +37,7 @@ class Hunter_Agent:
         self.memory_counter = 1
         self.update_counter = 0
         self.outloss = 0
-        self.actions_value = [0,0]
+        self.actions_value = np.zeros([self.n_robot, self.n_actions], dtype=np.float32)
         # w*h*m, this is the parameter of memory
         self.w = 84 #observation_w
         self.h = 84 #observation_h
@@ -89,7 +89,8 @@ class Hunter_Agent:
             W_fc5 = tf.Variable(tf.truncated_normal([512, self.n_actions*self.n_robot], stddev=0.01), collections=collection_names)
             b_fc5 = tf.Variable(tf.constant(0.01, shape=[self.n_actions*self.n_robot]), collections=collection_names)
             h_fc5 = tf.matmul(h_fc4, W_fc5) + b_fc5
-            return h_fc5
+            h_fc5_reshape = tf.reshape(h_fc5,shape=[-1,self.n_robot,self.n_actions])
+            return h_fc5_reshape
 
         # ------------------ build frozen_net ------------------
         self.batch_Nfi = tf.placeholder(tf.float32, shape=[None, self.w, self.h, self.m]) / 255  # input Next State
@@ -101,9 +102,9 @@ class Hunter_Agent:
         col_train_net = ['training_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
         self.q_fi_from_training_net = build_layers(self.batch_fi, col_train_net)
 
-        self.batch_a = tf.placeholder(tf.int32, [None, ])  # input Action
-        a_one_hot = tf.one_hot(self.batch_a, depth=self.n_actions, dtype=tf.float32)
-        self.q_fi_from_training_net_with_action = tf.reduce_sum(self.q_fi_from_training_net * a_one_hot, axis=1)  #dot product
+        self.batch_a = tf.placeholder(tf.int32, [None, self.n_robot])  # input Action
+        a_one_hot = tf.one_hot(self.batch_a, depth=self.n_actions, dtype=tf.int32)
+        self.q_fi_from_training_net_with_action = tf.reduce_sum(self.q_fi_from_training_net * a_one_hot, axis=-1)  #dot product
 
         self.q_fi_suppose_by_frozen_net = tf.placeholder(tf.float32, shape=[None, ])
         self.loss = tf.reduce_mean(tf.squared_difference(self.q_fi_suppose_by_frozen_net, self.q_fi_from_training_net_with_action))
@@ -126,7 +127,7 @@ class Hunter_Agent:
             action = np.random.randint(0, self.n_actions)
         else:
             self.actions_value = self.sess.run(self.q_fi_from_training_net, feed_dict={self.batch_fi: observation})[0]
-            action = np.argmax(self.actions_value)
+            action = np.argmax(self.actions_value, axis=1)
         return action
 
 

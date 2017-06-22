@@ -37,15 +37,15 @@ class Escaper_Agent:
         self.memory_counter = 1
         self.update_counter = 0
         self.outloss = 0
-        self.actions_value = [0,0]
+        self.actions_value = np.zeros([self.n_actions], dtype = np.float32)
         # w*h*m, this is the parameter of memory
         self.w = 84 #observation_w
         self.h = 84 #observation_h
         self.m = 4 #agent_history_length
-        self.memory = {'fi': np.zeros(shape=[self.memory_size, self.w, self.h, self.m], dtype=np.uint8),#0-255
+        self.memory = {'fi': np.zeros(shape=[self.memory_size, self.w, self.h, self.m], dtype = np.uint8),#0-255
                   'a': np.zeros(shape=[self.memory_size, ], dtype=np.int8),
                   'r': np.zeros(shape=[self.memory_size, ], dtype=np.int8),
-                  'Nfi': np.zeros(shape=[self.memory_size, self.w, self.h, self.m], dtype=np.uint8),
+                  'Nfi': np.zeros(shape=[self.memory_size, self.w, self.h, self.m], dtype = np.uint8),
                   'done': np.zeros(shape=[self.memory_size, ], dtype=np.uint8)}
 
         self._build_net()# consist of [frozen_net, training_net]

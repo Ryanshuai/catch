@@ -30,11 +30,11 @@ def next_step(action):
 
 def hunting():
     for episode in range(EPISODE_NUMS):
-        init_action = np.zeros([5],dtype = float32)  # input_actions[1] == 1: flap the bird
+        init_action = np.zeros([5],dtype = np.float32)  # input_actions[1] == 1: flap the bird
         observation, reward_h, reward_e, terminal = next_step(init_action)
         score = 0
         while not terminal:
-            action = np.zeros([5], dtype=float32)
+            action = np.zeros([5], dtype = np.float32)
             action[0:4] = hunter.choose_action(observation)
             action[4] = escaper.choose_action(observation)
 
