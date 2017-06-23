@@ -43,8 +43,8 @@ class Hunter_Agent:
         self.h = 84 #observation_h
         self.m = 4 #agent_history_length
         self.memory = {'fi': np.zeros(shape=[self.memory_size, self.w, self.h, self.m], dtype=np.uint8),#0-255
-                  'a': np.zeros(shape=[self.memory_size, ], dtype=np.int8),
-                  'r': np.zeros(shape=[self.memory_size, ], dtype=np.int8),
+                  'a': np.zeros(shape=[self.memory_size, self.n_robot], dtype=np.int8),
+                  'r': np.zeros(shape=[self.memory_size, self.n_robot], dtype=np.int8),
                   'Nfi': np.zeros(shape=[self.memory_size, self.w, self.h, self.m], dtype=np.uint8),
                   'done': np.zeros(shape=[self.memory_size, ], dtype=np.uint8)}
 
@@ -103,10 +103,10 @@ class Hunter_Agent:
         self.q_fi_from_training_net = build_layers(self.batch_fi, col_train_net)
 
         self.batch_a = tf.placeholder(tf.int32, [None, self.n_robot])  # input Action
-        a_one_hot = tf.one_hot(self.batch_a, depth=self.n_actions, dtype=tf.int32)
+        a_one_hot = tf.one_hot(self.batch_a, depth=self.n_actions, dtype=tf.float32)
         self.q_fi_from_training_net_with_action = tf.reduce_sum(self.q_fi_from_training_net * a_one_hot, axis=-1)  #dot product
 
-        self.q_fi_suppose_by_frozen_net = tf.placeholder(tf.float32, shape=[None, ])
+        self.q_fi_suppose_by_frozen_net = tf.placeholder(tf.float32, shape=[None, self.n_robot])
         self.loss = tf.reduce_mean(tf.squared_difference(self.q_fi_suppose_by_frozen_net, self.q_fi_from_training_net_with_action))
         self._train_op = tf.train.RMSPropOptimizer(self.lr).minimize(self.loss)
 
@@ -153,8 +153,17 @@ class Hunter_Agent:
                 sample_index = np.random.choice(self.memory_counter, size=self.batch_size)
             #get q_fi_suppose_by_frozen_net
             q_Nfi_from_frozen_net = self.sess.run(self.q_Nfi_from_frozen_net, feed_dict={self.batch_Nfi: self.memory['Nfi'][sample_index]})
-            end_multiplier = -(self.memory['done'][sample_index] - 1)
-            q_fi_suppose_by_frozen_net = self.memory['r'][sample_index] + self.gamma * np.max(q_Nfi_from_frozen_net, axis=1) * end_multiplier
+            #end_multiplier = -(self.memory['done'][sample_index] - 1)
+            done = self.memory['done'][sample_index]
+            q_fi_suppose_by_frozen_net = np.zeros([self.batch_size, self.n_robot])
+            for i in range(self.batch_size):
+                if done[i] == True:
+                    q_fi_suppose_by_frozen_net = self.memory['r'][sample_index]
+                else:
+                    Q_next_sum = self.gamma * np.sum(np.max(q_Nfi_from_frozen_net, axis=-1), axis=-1)
+                    Q_next_sum = Q_next_sum[:, np.newaxis] / self.n_robot
+                    q_fi_suppose_by_frozen_net = self.memory['r'][sample_index] + Q_next_sum
+
             # train training_network by q_fi_suppose_by_frozen_net
             _, self.outloss = self.sess.run([self._train_op, self.loss],
                 feed_dict={self.q_fi_suppose_by_frozen_net : q_fi_suppose_by_frozen_net,

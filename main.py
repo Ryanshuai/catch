@@ -44,16 +44,16 @@ def hunting():
             hunter_printer = hunter.learn()
             escaper_printer = escaper.learn()
             observation = nextObservation
-            if not terminal:
-                print('Hunter:  DoNth:','%+.4f' % hunter_printer[0],'fly:','%+.4f' % hunter_printer[1],'e:', '%.4f' % hunter_printer[2],
-              ' train_step:',hunter_printer[3], ' update:', hunter_printer[4],' loss:',hunter_printer[5])
-                print('Escaper:  DoNth:', '%+.4f' % escaper_printer[0], 'fly:', '%+.4f' % escaper_printer[1], 'e:', '%.4f' % escaper_printer[2],
-                      ' train_step:', escaper_printer[3], ' update:', escaper_printer[4], ' loss:', escaper_printer[5])
-            else:
-                print('Hunter:  DoNth:', '%+.4f' % hunter_printer[0], 'fly:', '%+.4f' % hunter_printer[1], 'e:', '%.4f' % hunter_printer[2],
-                      ' train_step:', hunter_printer[3], ' update:', hunter_printer[4], ' loss:', hunter_printer[5])
-                print('Escaper:  DoNth:', '%+.4f' % escaper_printer[0], 'fly:', '%+.4f' % escaper_printer[1], 'e:', '%.4f' % escaper_printer[2],
-                      ' train_step:', escaper_printer[3], ' update:', escaper_printer[4], ' loss:', escaper_printer[5],end='')
+            # if not terminal:
+            #     print('Hunter:  DoNth:','%+.4f' % hunter_printer[0],'fly:','%+.4f' % hunter_printer[1],'e:', '%.4f' % hunter_printer[2],
+            #   ' train_step:',hunter_printer[3], ' update:', hunter_printer[4],' loss:',hunter_printer[5])
+            #     print('Escaper:  DoNth:', '%+.4f' % escaper_printer[0], 'fly:', '%+.4f' % escaper_printer[1], 'e:', '%.4f' % escaper_printer[2],
+            #           ' train_step:', escaper_printer[3], ' update:', escaper_printer[4], ' loss:', escaper_printer[5])
+            # else:
+            #     print('Hunter:  DoNth:', '%+.4f' % hunter_printer[0], 'fly:', '%+.4f' % hunter_printer[1], 'e:', '%.4f' % hunter_printer[2],
+            #           ' train_step:', hunter_printer[3], ' update:', hunter_printer[4], ' loss:', hunter_printer[5])
+            #     print('Escaper:  DoNth:', '%+.4f' % escaper_printer[0], 'fly:', '%+.4f' % escaper_printer[1], 'e:', '%.4f' % escaper_printer[2],
+            #           ' train_step:', escaper_printer[3], ' update:', escaper_printer[4], ' loss:', escaper_printer[5],end='')
         print('--------')
 
 if __name__ == '__main__':

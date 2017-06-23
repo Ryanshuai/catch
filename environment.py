@@ -22,7 +22,7 @@ pygame.display.set_caption('hunting')
 background = (255, 255, 255) #white
 hunter_color = (0, 0, 0) #black
 escaper_color = (255, 0, 0) #red
-screen.fill(background)
+
 
 class ENV:
     def __init__(self):
@@ -44,30 +44,31 @@ class ENV:
     def frame_step(self, input_actions):
         # input_actions: 0->stay, 1->up, 2->down, 3->left, 4->right
         terminal = False
-        reward_hunter = 0
+        reward_hunter = np.zeros([4],np.float32)
         reward_escaper = 0
 
         #update the pos and speed
         self.move(input_actions)
 
         # check is_collide
-        reward_hunter += self.is_collide()
+        reward_hunter += self.is_collide() # only collide hunters have rewards
 
         # check is_cached or is_escaped
-        Cached = self.is_catched()
+        Cached, reward_cached = self.is_catched()
         Escaped = self.is_escaped()
         if Cached:
-            reward_hunter += 1
+            reward_hunter += reward_cached # reward_sum = hunters(cached the escaper) * 0.5 / 4, gives all hunters uniformly
             reward_escaper = -1
             self.__init__()
             terminal = True
         elif Escaped:
-            reward_escaper += -1
-            reward_hunter = 1
+            reward_hunter += (-1 / 4) * np.ones([4], np.float32) # is_escaped, reward of each hunter is -0.25
+            reward_escaper = 1
             self.__init__()
             terminal = True
 
         # update the display
+        screen.fill(background)
         for i in range(len(self.hunter_pos)):
             pygame.draw.circle(screen, hunter_color, self.hunter_pos[i], self.hunter_radius, 3)
         pygame.draw.circle(screen, escaper_color, self.escaper_pos, self.escaper_radius, 3)
@@ -94,8 +95,11 @@ class ENV:
     def is_catched(self):
         reletive_dis = [i - self.escaper_pos for i in self.hunter_pos]
         reletive_dis = list(filter(lambda x:np.linalg.norm(x)<self.catch_dis, reletive_dis))
+        reward_sum = len(reletive_dis) * 0.5
+        reward_cached = (reward_sum / 4) * np.ones([4], dtype=np.float32)
+
         if len(reletive_dis)<3:
-            return False
+            return False, reward_cached
         x = [i[0] for i in reletive_dis]
         y = [i[1] for i in reletive_dis]
         angle_e_h = np.arctan2(y, x)
@@ -103,8 +107,8 @@ class ENV:
         error_angle_e_h = angle_e_h[list(range(1,len(angle_e_h)))+[0]] - angle_e_h
         error_angle_e_h[len(error_angle_e_h) - 1] += 2 * np.pi
         if any([abs(i)>np.pi*3/4 for i in error_angle_e_h]):
-            return False
-        return True
+            return False, reward_cached
+        return True, reward_cached
 
     def is_escaped(self):
         if any([i>0 for i in self.escaper_pos-self.max_pos]+[i<0 for i in self.escaper_pos]):
@@ -112,18 +116,23 @@ class ENV:
         return False
 
     def is_collide(self):
-        reward_collide = 0
+        reward_collide = np.zeros([4], np.float32)
         radio = -0.01
-        collide_wall_num = len(list( filter(
-            lambda x: x[0]<0 or x[0]>SCREEN_WHIDTH or x[1]<0 or x[1]>SCREEN_HEIGHT, self.hunter_pos)))
-        reward_collide += radio * collide_wall_num
+        # collide_wall_num = len(list( filter(
+        #     lambda x: x[0]<0 or x[0]>SCREEN_WHIDTH or x[1]<0 or x[1]>SCREEN_HEIGHT, self.hunter_pos)))
+        # reward_collide += radio * collide_wall_num
+        for i in range(4):
+            if (self.hunter_pos[i][0]<0 or self.hunter_pos[i][0]>SCREEN_WHIDTH or
+                        self.hunter_pos[i][1]<0 or self.hunter_pos[i][1]>SCREEN_HEIGHT):
+                reward_collide[i] = radio
 
-        num_hunter = len(self.hunter_pos)
-        for i in range(num_hunter-1):
-            for j in range(i+1, num_hunter):
+        for i in range(3):
+            for j in range(i+1, 4):
                if( np.linalg.norm([self.hunter_pos[i][0]-self.hunter_pos[j][0],
                                 self.hunter_pos[i][1] - self.hunter_pos[j][1]]) <= self.collide_min):
-                   reward_collide += radio
+                    reward_collide[i] += radio
+                    reward_collide[j] += radio
+
         return reward_collide
 
     def move(self, input_actions):
