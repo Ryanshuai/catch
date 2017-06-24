@@ -58,7 +58,7 @@ class ENV:
         Cached = self.is_catched()
         Escaped = self.is_escaped()
         if Cached:
-            reward_hunter += 2
+            reward_hunter += np.array([2,2,2,2], np.float32)
             reward_escaper = -1
             self.__init__()
             terminal = True
