@@ -29,17 +29,18 @@ class ENV:
         self.hunter_radius = 3
         self.escaper_radius = 5
         self.max_pos = np.array([SCREEN_WHIDTH, SCREEN_HEIGHT])
-        self.catch_dis = self.hunter_radius + self.escaper_radius + 5.
+        self.catch_angle_max = np.pi*3/4 #135°
+        self.catch_dis = 50.
         self.collide_min = self.hunter_radius + self.escaper_radius + 2.
         # the center pos, x : [0, SCREEN_WHIDTH], y: [0, SCREEN_HEIGHT]
-        self._init_pos()
         self.delta_t = 0.1 # 100ms
-        self.hunter_acc = 2
-        self.escaper_acc = 1
+        self.hunter_acc = 20
+        self.escaper_acc = 10
+        self.hunter_spd_max = 100 # 5 pixels once
+        self.escaper_spd_max = 70
         self.hunter_spd = np.zeros([4,2],dtype=np.float32)
         self.escaper_spd = np.zeros([2],dtype=np.float32)
-        self.hunter_spd_max = 10 # 5 pixels once
-        self.escaper_spd_max = 7
+        self._init_pos()
 
     def frame_step(self, input_actions):
         # input_actions: 0->stay, 1->up, 2->down, 3->left, 4->right
@@ -54,15 +55,17 @@ class ENV:
         reward_hunter += self.is_collide() # only collide hunters have rewards
 
         # check is_cached or is_escaped
-        Cached, reward_cached = self.is_catched()
+        Cached = self.is_catched()
         Escaped = self.is_escaped()
         if Cached:
-            reward_hunter += reward_cached # reward_sum = hunters(cached the escaper) * 0.5 / 4, gives all hunters uniformly
+            reward_hunter += 2
             reward_escaper = -1
             self.__init__()
             terminal = True
         elif Escaped:
-            reward_hunter += (-1 / 4) * np.ones([4], np.float32) # is_escaped, reward of each hunter is -0.25
+            abs_raletive_dis = [np.linalg.norm(i - self.escaper_pos) for i in self.hunter_pos]
+            dis_reward = [min(50 / i, 1) for i in abs_raletive_dis]
+            reward_hunter += dis_reward
             reward_escaper = 1
             self.__init__()
             terminal = True
@@ -95,20 +98,18 @@ class ENV:
     def is_catched(self):
         reletive_dis = [i - self.escaper_pos for i in self.hunter_pos]
         reletive_dis = list(filter(lambda x:np.linalg.norm(x)<self.catch_dis, reletive_dis))
-        reward_sum = len(reletive_dis) * 0.5
-        reward_cached = (reward_sum / 4) * np.ones([4], dtype=np.float32)
 
         if len(reletive_dis)<3:
-            return False, reward_cached
+            return False
         x = [i[0] for i in reletive_dis]
         y = [i[1] for i in reletive_dis]
         angle_e_h = np.arctan2(y, x)
         angle_e_h = angle_e_h[np.argsort(angle_e_h)]
         error_angle_e_h = angle_e_h[list(range(1,len(angle_e_h)))+[0]] - angle_e_h
         error_angle_e_h[len(error_angle_e_h) - 1] += 2 * np.pi
-        if any([abs(i)>np.pi*3/4 for i in error_angle_e_h]):
-            return False, reward_cached
-        return True, reward_cached
+        if all([abs(i)<self.catch_angle_max for i in error_angle_e_h]):
+            return True
+        return False
 
     def is_escaped(self):
         if any([i>0 for i in self.escaper_pos-self.max_pos]+[i<0 for i in self.escaper_pos]):

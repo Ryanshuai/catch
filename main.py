@@ -32,28 +32,22 @@ def hunting():
     for episode in range(EPISODE_NUMS):
         init_action = np.zeros([5],dtype = np.float32)  # input_actions[1] == 1: flap the bird
         observation, reward_h, reward_e, terminal = next_step(init_action)
-        score = 0
+        hunter_score = np.zeros([4])
+        escaper_score = 0
         while not terminal:
             action = np.zeros([5], dtype = np.float32)
             action[0:4] = hunter.choose_action(observation)
             action[4] = escaper.choose_action(observation)
 
             nextObservation, reward_h, reward_e, terminal = next_step(action)
+            hunter_score+=reward_h
+            escaper_score+=reward_e
             hunter.store_transition(observation, action[0:4], reward_h, nextObservation, terminal)
             escaper.store_transition(observation, action[4], reward_e, nextObservation, terminal)
             hunter_printer = hunter.learn()
             escaper_printer = escaper.learn()
             observation = nextObservation
-            # if not terminal:
-            #     print('Hunter:  DoNth:','%+.4f' % hunter_printer[0],'fly:','%+.4f' % hunter_printer[1],'e:', '%.4f' % hunter_printer[2],
-            #   ' train_step:',hunter_printer[3], ' update:', hunter_printer[4],' loss:',hunter_printer[5])
-            #     print('Escaper:  DoNth:', '%+.4f' % escaper_printer[0], 'fly:', '%+.4f' % escaper_printer[1], 'e:', '%.4f' % escaper_printer[2],
-            #           ' train_step:', escaper_printer[3], ' update:', escaper_printer[4], ' loss:', escaper_printer[5])
-            # else:
-            #     print('Hunter:  DoNth:', '%+.4f' % hunter_printer[0], 'fly:', '%+.4f' % hunter_printer[1], 'e:', '%.4f' % hunter_printer[2],
-            #           ' train_step:', hunter_printer[3], ' update:', hunter_printer[4], ' loss:', hunter_printer[5])
-            #     print('Escaper:  DoNth:', '%+.4f' % escaper_printer[0], 'fly:', '%+.4f' % escaper_printer[1], 'e:', '%.4f' % escaper_printer[2],
-            #           ' train_step:', escaper_printer[3], ' update:', escaper_printer[4], ' loss:', escaper_printer[5],end='')
+        print('hunter_score:',hunter_score,'\tescaper_score:',escaper_score)
         print('--------')
 
 if __name__ == '__main__':
