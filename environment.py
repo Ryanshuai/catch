@@ -73,8 +73,13 @@ class ENV:
         # update the display
         screen.fill(background)
         for i in range(len(self.hunter_pos)):
-            pygame.draw.circle(screen, hunter_color, self.hunter_pos[i], self.hunter_radius, 3)
-        pygame.draw.circle(screen, escaper_color, self.escaper_pos, self.escaper_radius, 3)
+            pygame.draw.rect(screen, hunter_color[i],
+                             ((self.hunter_pos[i][0] - self.hunter_radius,
+                               self.hunter_pos[i][1] - self.hunter_radius),
+                              (self.hunter_radius * 2, self.hunter_radius * 2)))
+        pygame.draw.rect(screen, escaper_color,
+                         ((self.escaper_pos[0] - self.escaper_radius, self.escaper_pos[1] - self.escaper_radius),
+                          (self.escaper_radius * 2, self.escaper_radius * 2)))
         image_data = pygame.surfarray.array3d(pygame.display.get_surface())
         pygame.display.update()
         FPSCLOCK.tick(FPS)
