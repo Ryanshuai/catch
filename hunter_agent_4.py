@@ -8,11 +8,11 @@ import numpy as np
 import tensorflow as tf
 
 
-LOAD_MODEL = 'Escaper_Agent_model/model1' #load model from here
-SAVE_MODEL = 'Escaper_Agent_model/model0/model.ckpt' #save model to here
+LOAD_MODEL = 'Hunter_Agent_4_model/model1' #load model from here
+SAVE_MODEL = 'Hunter_Agent_4_model/model0/model.ckpt' #save model to here
 
 # Deep Q Network off-policy
-class Escaper_Agent:
+class Hunter_Agent_4:
     def __init__(self):
         self.n_actions = 5 #up down left right remain
         self.n_robot = 1
