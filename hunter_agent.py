@@ -11,9 +11,11 @@ import tensorflow as tf
 
 # Deep Q Network off-policy
 class Hunter_Agent:
-    def __init__(self,LOAD_MODEL,SAVE_MODEL):
+    def __init__(self,LOAD_MODEL,SAVE_MODEL,frozen_net_collecion_name,trian_net_collecion_name):
         self.LOAD_MODEL = LOAD_MODEL
         self.SAVE_MODEL = SAVE_MODEL
+        self.frozen_net_collecion_name = frozen_net_collecion_name
+        self.trian_net_collecion_name =trian_net_collecion_name
 
         self.n_actions = 5 #up down left right remain
         self.n_robot = 1
@@ -94,12 +96,12 @@ class Hunter_Agent:
 
         # ------------------ build frozen_net ------------------
         self.batch_Nfi = tf.placeholder(tf.float32, shape=[None, self.w, self.h, self.m]) / 255  # input Next State
-        col_frozen_net = ['e_frozen_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
+        col_frozen_net = [self.frozen_net_collecion_name, tf.GraphKeys.GLOBAL_VARIABLES]
         self.q_Nfi_from_frozen_net = build_layers(self.batch_Nfi, col_frozen_net)
 
         # ------------------ build training_net ------------------
         self.batch_fi = tf.placeholder(tf.float32, shape=[None, self.w, self.h, self.m]) / 255
-        col_train_net = ['e_training_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
+        col_train_net = [self.trian_net_collecion_name, tf.GraphKeys.GLOBAL_VARIABLES]
         self.q_fi_from_training_net = build_layers(self.batch_fi, col_train_net)
 
         self.batch_a = tf.placeholder(tf.int32, [None, ])  # input Action
@@ -133,8 +135,8 @@ class Hunter_Agent:
 
     def learn(self):
         if self.train_step_counter % self.frozen_network_update_frequency == 0:
-            t_params = tf.get_collection('e_frozen_net_params')
-            e_params = tf.get_collection('e_training_net_params')
+            t_params = tf.get_collection(self.frozen_net_collecion_name)
+            e_params = tf.get_collection(self.trian_net_collecion_name)
             self.sess.run([tf.assign(t, e) for t, e in zip(t_params, e_params)])
             self.saver.save(self.sess, self.SAVE_MODEL, global_step=self.train_step_counter)
             self.update_counter += 1

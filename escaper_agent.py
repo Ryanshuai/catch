@@ -93,12 +93,12 @@ class Escaper_Agent:
 
         # ------------------ build frozen_net ------------------
         self.batch_Nfi = tf.placeholder(tf.float32, shape=[None, self.w, self.h, self.m]) / 255  # input Next State
-        col_frozen_net = ['e_frozen_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
+        col_frozen_net = ['escaper_frozen_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
         self.q_Nfi_from_frozen_net = build_layers(self.batch_Nfi, col_frozen_net)
 
         # ------------------ build training_net ------------------
         self.batch_fi = tf.placeholder(tf.float32, shape=[None, self.w, self.h, self.m]) / 255
-        col_train_net = ['e_training_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
+        col_train_net = ['escaper_training_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
         self.q_fi_from_training_net = build_layers(self.batch_fi, col_train_net)
 
         self.batch_a = tf.placeholder(tf.int32, [None, ])  # input Action
@@ -132,8 +132,8 @@ class Escaper_Agent:
 
     def learn(self):
         if self.train_step_counter % self.frozen_network_update_frequency == 0:
-            t_params = tf.get_collection('e_frozen_net_params')
-            e_params = tf.get_collection('e_training_net_params')
+            t_params = tf.get_collection('escaper_frozen_net_params')
+            e_params = tf.get_collection('escaper_training_net_params')
             self.sess.run([tf.assign(t, e) for t, e in zip(t_params, e_params)])
             self.saver.save(self.sess, SAVE_MODEL, global_step=self.train_step_counter)
             self.update_counter += 1

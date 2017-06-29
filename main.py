@@ -54,18 +54,28 @@ def hunting():
         print('hunter_score:',hunter_score,'\tescaper_score:',escaper_score)
         print('--------')
 
-load_mode1 = 'Hunter/mode1/mode0'
-load_mode2 = 'Hunter/mode2/mode0'
-load_mode3 = 'Hunter/mode3/mode0'
-load_mode4 = 'Hunter/mode4/mode0'
-save_mode1 = 'Hunter/model1/model1/model.ckpt'
-save_mode2 = 'Hunter/model2/model1/model.ckpt'
-save_mode3 = 'Hunter/model3/model1/model.ckpt'
-save_mode4 = 'Hunter/model4/model1/model.ckpt'
+load_mode0 = 'Hunter/mode1/mode0'
+load_mode1 = 'Hunter/mode2/mode0'
+load_mode2 = 'Hunter/mode3/mode0'
+load_mode3 = 'Hunter/mode4/mode0'
+save_mode0 = 'Hunter/model1/model1/model.ckpt'
+save_mode1 = 'Hunter/model2/model1/model.ckpt'
+save_mode2 = 'Hunter/model3/model1/model.ckpt'
+save_mode3 = 'Hunter/model4/model1/model.ckpt'
+frozen_net_collecion_name0 = 'hunter0_frozen_net'
+frozen_net_collecion_name1 = 'hunter1_frozen_net'
+frozen_net_collecion_name2 = 'hunter2_frozen_net'
+frozen_net_collecion_name3 = 'hunter3_frozen_net'
+training_net_collecion_name0 = 'hunter0_training_net'
+training_net_collecion_name1 = 'hunter1_training_net'
+training_net_collecion_name2 = 'hunter2_training_net'
+training_net_collecion_name3 = 'hunter3_training_net'
 
 if __name__ == '__main__':
     env = ENV()
     escaper = Escaper_Agent()
-    hunter = [Hunter_Agent(load_mode1, save_mode1), Hunter_Agent(load_mode2, save_mode2),
-              Hunter_Agent(load_mode3, save_mode3),  Hunter_Agent(load_mode4, save_mode4)]
+    hunter = [Hunter_Agent(load_mode0, save_mode0, frozen_net_collecion_name0, training_net_collecion_name0),
+              Hunter_Agent(load_mode1, save_mode1, frozen_net_collecion_name1, training_net_collecion_name1),
+              Hunter_Agent(load_mode2, save_mode2, frozen_net_collecion_name2, training_net_collecion_name2),
+              Hunter_Agent(load_mode3, save_mode3, frozen_net_collecion_name3, training_net_collecion_name3)]
     hunting()
