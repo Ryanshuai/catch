@@ -4,6 +4,7 @@ from environment import ENV
 from escaper_agent import Escaper_Agent
 from hunter_agent import Hunter_Agent
 import numpy as np
+from Ryan_resize import ys_resize
 
 EPISODE_NUMS = 1000000
 img_w = 84
@@ -24,6 +25,7 @@ def next_step(action):
         if terminal:
             break
         next_image = cv2.cvtColor(cv2.resize(next_image, (img_w, img_w)), cv2.COLOR_BGR2GRAY)
+        next_image = ys_resize(next_image)
         nextObservation[:, :,i] = next_image
     return nextObservation, reward_h_sum, reward_e_sum, terminal
 
@@ -65,5 +67,5 @@ if __name__ == '__main__':
     env = ENV()
     escaper = Escaper_Agent()
     hunter = [Hunter_Agent(load_mode1, save_mode1), Hunter_Agent(load_mode2, save_mode2),
-              Hunter_Agent(load_mode3, save_mode3),  Hunter_Agent(load_mode4, save_mode4) ]
+              Hunter_Agent(load_mode3, save_mode3),  Hunter_Agent(load_mode4, save_mode4)]
     hunting()

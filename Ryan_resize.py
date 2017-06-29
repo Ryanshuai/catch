@@ -1,4 +1,4 @@
-def ys_resize(image,shrik):
+def ys_resize(image):
     width,height = image.shape()
     import numpy as np
     resized_image = np.zeros(shape=[height,width])
