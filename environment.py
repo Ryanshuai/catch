@@ -55,10 +55,10 @@ class ENV:
         reward_hunter += self.is_collide() # only collide hunters have rewards
 
         # check is_cached or is_escaped
-        Cached = self.is_catched()
+        Cached,hunter_catch_reward = self.is_catched()
         Escaped = self.is_escaped()
         if Cached:
-            reward_hunter += np.array([2,2,2,2], np.float32)
+            reward_hunter += hunter_catch_reward
             reward_escaper = -1
             self.__init__()
             terminal = True
@@ -95,21 +95,30 @@ class ENV:
         self.hunter_pos[2] = [uniform(0, x_min-self.collide_min), uniform(y_max+self.collide_min, SCREEN_HEIGHT)]
         self.hunter_pos[3] = [uniform(x_max+self.collide_min, SCREEN_WHIDTH), uniform(y_max + self.collide_min, SCREEN_HEIGHT)]
 
-    def is_catched(self):
-        reletive_dis = [i - self.escaper_pos for i in self.hunter_pos]
-        reletive_dis = list(filter(lambda x:np.linalg.norm(x)<self.catch_dis, reletive_dis))
+    # def is_catched(self):
+    #     reletive_dis = [i - self.escaper_pos for i in self.hunter_pos]
+    #     reletive_dis = list(filter(lambda x:np.linalg.norm(x)<self.catch_dis, reletive_dis))
+    #
+    #     if len(reletive_dis)<3:
+    #         return False
+    #     x = [i[0] for i in reletive_dis]
+    #     y = [i[1] for i in reletive_dis]
+    #     angle_e_h = np.arctan2(y, x)
+    #     angle_e_h = angle_e_h[np.argsort(angle_e_h)]
+    #     error_angle_e_h = angle_e_h[list(range(1,len(angle_e_h)))+[0]] - angle_e_h
+    #     error_angle_e_h[len(error_angle_e_h) - 1] += 2 * np.pi
+    #     if all([abs(i)<self.catch_angle_max for i in error_angle_e_h]):
+    #         return True
+    #     return False
 
-        if len(reletive_dis)<3:
-            return False
-        x = [i[0] for i in reletive_dis]
-        y = [i[1] for i in reletive_dis]
-        angle_e_h = np.arctan2(y, x)
-        angle_e_h = angle_e_h[np.argsort(angle_e_h)]
-        error_angle_e_h = angle_e_h[list(range(1,len(angle_e_h)))+[0]] - angle_e_h
-        error_angle_e_h[len(error_angle_e_h) - 1] += 2 * np.pi
-        if all([abs(i)<self.catch_angle_max for i in error_angle_e_h]):
-            return True
-        return False
+    def is_catched(self):
+        norm_reletive_dis = [np.linalg.norm(i - self.escaper_pos) for i in self.hunter_pos]
+        hunter_reward = [int(i<self.catch_dis) for i in  norm_reletive_dis]
+        if(sum(hunter_reward)>0):
+            return True,hunter_reward
+        else:
+            return False,hunter_reward
+
 
     def is_escaped(self):
         if any([i>0 for i in self.escaper_pos-self.max_pos]+[i<0 for i in self.escaper_pos]):

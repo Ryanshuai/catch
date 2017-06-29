@@ -36,22 +36,34 @@ def hunting():
         escaper_score = 0
         while not terminal:
             action = np.zeros([5], dtype = np.float32)
-            action[0:4] = hunter.choose_action(observation)
+            for i in range(4):
+                action[i] = hunter[i].choose_action(observation)
             action[4] = escaper.choose_action(observation)
-
             nextObservation, reward_h, reward_e, terminal = next_step(action)
             hunter_score+=reward_h
             escaper_score+=reward_e
-            hunter.store_transition(observation, action[0:4], reward_h, nextObservation, terminal)
+            for i in range(4):
+                hunter[i].store_transition(observation, action[i], reward_h[i], nextObservation, terminal)
             escaper.store_transition(observation, action[4], reward_e, nextObservation, terminal)
-            hunter_printer = hunter.learn()
+            for i in range(4):
+                hunter[i].learn()
             escaper_printer = escaper.learn()
             observation = nextObservation
         print('hunter_score:',hunter_score,'\tescaper_score:',escaper_score)
         print('--------')
 
+load_mode1 = 'Hunter/mode1/mode0'
+load_mode2 = 'Hunter/mode2/mode0'
+load_mode3 = 'Hunter/mode3/mode0'
+load_mode4 = 'Hunter/mode4/mode0'
+save_mode1 = 'Hunter/model1/model1/model.ckpt'
+save_mode2 = 'Hunter/model2/model1/model.ckpt'
+save_mode3 = 'Hunter/model3/model1/model.ckpt'
+save_mode4 = 'Hunter/model4/model1/model.ckpt'
+
 if __name__ == '__main__':
     env = ENV()
     escaper = Escaper_Agent()
-    hunter = Hunter_Agent()
+    hunter = [Hunter_Agent(load_mode1, save_mode1), Hunter_Agent(load_mode2, save_mode2),
+              Hunter_Agent(load_mode3, save_mode3),  Hunter_Agent(load_mode4, save_mode4) ]
     hunting()
