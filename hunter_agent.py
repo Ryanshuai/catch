@@ -124,7 +124,8 @@ class Hunter_Agent:
     def choose_action(self, observation):
         observation = observation[np.newaxis, :]#[84,84,4] - > [1,84,84,4]
         if np.random.uniform() < self.exploration: #exploration
-            action = np.random.randint(0, self.n_actions)
+            action = np.array([np.random.randint(0, self.n_actions), np.random.randint(0, self.n_actions),
+                              np.random.randint(0, self.n_actions), np.random.randint(0, self.n_actions)])
         else:
             self.actions_value = self.sess.run(self.q_fi_from_training_net, feed_dict={self.batch_fi: observation})[0]
             action = np.argmax(self.actions_value, axis=1)
