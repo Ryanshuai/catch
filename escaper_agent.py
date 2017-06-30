@@ -8,8 +8,8 @@ import numpy as np
 import tensorflow as tf
 
 
-LOAD_MODEL = 'Escaper_Agent_model/model1' #load model from here
-SAVE_MODEL = 'Escaper_Agent_model/model0/model.ckpt' #save model to here
+LOAD_MODEL = 'escaper_agent_model/model1' #load model from here
+SAVE_MODEL = 'escaper_agent_model/model0/model.ckpt' #save model to here
 
 # Deep Q Network off-policy
 class Escaper_Agent:

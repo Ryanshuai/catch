@@ -1,7 +1,8 @@
 def ys_resize(image):
-    width,height = 672,672
+    width, height = 672, 672
+
     import numpy as np
-    resized_image = np.zeros(shape=[height,width])
+    resized_image = np.zeros(shape=[84,84])
     for i in range(height):
         if(i%8==0):
             for j in range(width):

@@ -30,14 +30,14 @@ class ENV:
         self.escaper_radius = 8
         self.max_pos = np.array([SCREEN_WHIDTH, SCREEN_HEIGHT])
         self.catch_angle_max = np.pi*3/4 #135°
-        self.catch_dis = 50.
+        self.catch_dis = 30.
         self.collide_min = self.hunter_radius + self.escaper_radius + 2.
         # the center pos, x : [0, SCREEN_WHIDTH], y: [0, SCREEN_HEIGHT]
         self.delta_t = 0.1 # 100ms
-        self.hunter_acc = 20
-        self.escaper_acc = 10
+        self.hunter_acc = 50
+        self.escaper_acc = 50
         self.hunter_spd_max = 100 # 5 pixels once
-        self.escaper_spd_max = 70
+        self.escaper_spd_max = 100
         self.hunter_spd = np.zeros([4,2],dtype=np.float32)
         self.escaper_spd = np.zeros([2],dtype=np.float32)
         self._init_pos()
@@ -63,9 +63,9 @@ class ENV:
             self.__init__()
             terminal = True
         elif Escaped:
-            abs_raletive_dis = [np.linalg.norm(i - self.escaper_pos) for i in self.hunter_pos]
-            dis_reward = [min(50 / i, 1) for i in abs_raletive_dis]
-            reward_hunter += dis_reward
+            # abs_raletive_dis = [np.linalg.norm(i - self.escaper_pos) for i in self.hunter_pos]
+            # dis_reward = [min(50 / i, 1) for i in abs_raletive_dis]
+            # reward_hunter += dis_reward
             reward_escaper = 1
             self.__init__()
             terminal = True

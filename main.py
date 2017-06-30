@@ -24,7 +24,7 @@ def next_step(action):
         # terminal = True, flappyBird is inited automatically
         if terminal:
             break
-        next_image = cv2.cvtColor(cv2.resize(next_image, (img_w, img_w)), cv2.COLOR_BGR2GRAY)
+        next_image = cv2.cvtColor(next_image, cv2.COLOR_BGR2GRAY)
         next_image = ys_resize(next_image)
         nextObservation[:, :,i] = next_image
     return nextObservation, reward_h_sum, reward_e_sum, terminal
@@ -59,14 +59,14 @@ def hunting():
         print('hunter_score:',hunter_score,'\tescaper_score:',escaper_score)
         print('----------------------------------------------------------------------------------------------escaper_loss',escaper_printer[4])
 
-load_mode0 = 'Hunter/mode1/mode0'
-load_mode1 = 'Hunter/mode2/mode0'
-load_mode2 = 'Hunter/mode3/mode0'
-load_mode3 = 'Hunter/mode4/mode0'
-save_mode0 = 'Hunter/model1/model1/model.ckpt'
-save_mode1 = 'Hunter/model2/model1/model.ckpt'
-save_mode2 = 'Hunter/model3/model1/model.ckpt'
-save_mode3 = 'Hunter/model4/model1/model.ckpt'
+load_mode0 = 'hunter_agent_model/hunter0/mode0'
+load_mode1 = 'hunter_agent_model/hunter1/mode0'
+load_mode2 = 'hunter_agent_model/hunter2/mode0'
+load_mode3 = 'hunter_agent_model/hunter3/mode0'
+save_mode0 = 'hunter_agent_model/hunter0/model1/model.ckpt'
+save_mode1 = 'hunter_agent_model/hunter1/model1/model.ckpt'
+save_mode2 = 'hunter_agent_model/hunter2/model1/model.ckpt'
+save_mode3 = 'hunter_agent_model/hunter3/model1/model.ckpt'
 frozen_net_collecion_name0 = 'hunter0_frozen_net'
 frozen_net_collecion_name1 = 'hunter1_frozen_net'
 frozen_net_collecion_name2 = 'hunter2_frozen_net'
