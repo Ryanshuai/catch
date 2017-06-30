@@ -21,7 +21,7 @@ class Hunter_Agent:
         self.n_robot = 1
 
         self.batch_size = 32
-        self.memory_size = 100000  # replay memory size
+        self.memory_size = 20000  # replay memory size
         self.history_length = 4 #agent history length
         self.frozen_network_update_frequency = 1000 #frozen network update frequency
         self.gamma = 0.99  # discount factor

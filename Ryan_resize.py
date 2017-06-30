@@ -1,5 +1,5 @@
 def ys_resize(image):
-    width,height = image.shape()
+    width,height = 672,672
     import numpy as np
     resized_image = np.zeros(shape=[height,width])
     for i in range(height):

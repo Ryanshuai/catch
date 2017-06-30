@@ -36,6 +36,8 @@ def hunting():
         observation, reward_h, reward_e, terminal = next_step(init_action)
         hunter_score = np.zeros([4])
         escaper_score = 0
+        escaper_printer = [0,0,0,0]
+        hunter_printer = [[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]]
         while not terminal:
             action = np.zeros([5], dtype = np.float32)
             for i in range(4):
@@ -48,11 +50,14 @@ def hunting():
                 hunter[i].store_transition(observation, action[i], reward_h[i], nextObservation, terminal)
             escaper.store_transition(observation, action[4], reward_e, nextObservation, terminal)
             for i in range(4):
-                hunter[i].learn()
+                hunter_printer[i] = hunter[i].learn()
             escaper_printer = escaper.learn()
             observation = nextObservation
+        print('exploration',hunter_printer[0][1],'train_step',hunter_printer[0][2],'update',hunter_printer[0][3])
+        print('h0_loss',hunter_printer[0][4],'h1_loss',hunter_printer[1][4],'h2_loss',hunter_printer[2][4],'h3_loss',hunter_printer[3][4])
+        print('hunter0_action_value',hunter_printer[0][0],'h1av',hunter_printer[1][0],'h2av',hunter_printer[2][0],'h3av',hunter_printer[3][0])
         print('hunter_score:',hunter_score,'\tescaper_score:',escaper_score)
-        print('--------')
+        print('----------------------------------------------------------------------------------------------escaper_loss',escaper_printer[4])
 
 load_mode0 = 'Hunter/mode1/mode0'
 load_mode1 = 'Hunter/mode2/mode0'

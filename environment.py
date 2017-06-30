@@ -9,8 +9,8 @@ import pygame
 from random import uniform
 
 FPS = 90
-SCREEN_WHIDTH = 600
-SCREEN_HEIGHT = 600
+SCREEN_WHIDTH = 672
+SCREEN_HEIGHT = 672
 
 #init the game
 pygame.init()
@@ -20,14 +20,14 @@ pygame.display.set_caption('hunting')
 
 # load resources
 background = (255, 255, 255) #white
-hunter_color = (0, 0, 0) #black
-escaper_color = (255, 0, 0) #red
+hunter_color = ((0, 0, 255),(255, 0, 0),(0, 255, 0),(255, 255, 0)) #black
+escaper_color = (0, 0, 0) #red
 
 
 class ENV:
     def __init__(self):
-        self.hunter_radius = 3
-        self.escaper_radius = 5
+        self.hunter_radius = 8
+        self.escaper_radius = 8
         self.max_pos = np.array([SCREEN_WHIDTH, SCREEN_HEIGHT])
         self.catch_angle_max = np.pi*3/4 #135°
         self.catch_dis = 50.
