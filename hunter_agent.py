@@ -27,10 +27,10 @@ class Hunter_Agent:
         self.gamma = 0.99  # discount factor
         self.action_repeat = 4
         self.update_frequency = 4
-        self.initial_exploration = 1. #1. #initial
+        self.initial_exploration = 0.5 #1. #initial
         self.final_exploration = 0.1
         self.exploration = self.initial_exploration 
-        self.final_exploration_frame = 100000
+        self.final_exploration_frame = 10000
         self.replay_start_size = 1000
         #used by RMSProp
         self.lr = 0.00025

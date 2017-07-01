@@ -34,8 +34,8 @@ class ENV:
         self.collide_min = self.hunter_radius + self.escaper_radius + 2.
         # the center pos, x : [0, SCREEN_WHIDTH], y: [0, SCREEN_HEIGHT]
         self.delta_t = 0.1 # 100ms
-        self.hunter_acc = 50
-        self.escaper_acc = 50
+        self.hunter_acc = 200
+        self.escaper_acc = 100
         self.hunter_spd_max = 100 # 5 pixels once
         self.escaper_spd_max = 100
         self.hunter_spd = np.zeros([4,2],dtype=np.float32)
@@ -55,17 +55,17 @@ class ENV:
         reward_hunter += self.is_collide() # only collide hunters have rewards
 
         # check is_cached or is_escaped
-        Cached,hunter_catch_reward = self.is_catched()
-        Escaped = self.is_escaped()
-        if Cached:
-            reward_hunter += hunter_catch_reward
+        if self.is_catched():
+            abs_raletive_dis = [np.linalg.norm(i - self.escaper_pos) for i in self.hunter_pos]
+            dis_reward = [min(30 / i, 1) for i in abs_raletive_dis]
+            reward_hunter += dis_reward
             reward_escaper = -1
             self.__init__()
             terminal = True
-        elif Escaped:
-            # abs_raletive_dis = [np.linalg.norm(i - self.escaper_pos) for i in self.hunter_pos]
-            # dis_reward = [min(50 / i, 1) for i in abs_raletive_dis]
-            # reward_hunter += dis_reward
+        elif self.is_escaped():
+            abs_raletive_dis = [np.linalg.norm(i - self.escaper_pos) for i in self.hunter_pos]
+            dis_reward = [min(30 / i, 1) for i in abs_raletive_dis]
+            reward_hunter += dis_reward
             reward_escaper = 1
             self.__init__()
             terminal = True
@@ -120,9 +120,9 @@ class ENV:
         norm_reletive_dis = [np.linalg.norm(i - self.escaper_pos) for i in self.hunter_pos]
         hunter_reward = [int(i<self.catch_dis) for i in  norm_reletive_dis]
         if(sum(hunter_reward)>0):
-            return True,hunter_reward
+            return True#,hunter_reward
         else:
-            return False,hunter_reward
+            return False#,hunter_reward
 
 
     def is_escaped(self):
