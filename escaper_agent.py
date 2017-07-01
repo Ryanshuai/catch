@@ -18,17 +18,17 @@ class Escaper_Agent:
         self.n_robot = 1
 
         self.batch_size = 32
-        self.memory_size = 100000  # replay memory size
+        self.memory_size = 1000000  # replay memory size
         self.history_length = 4 #agent history length
-        self.frozen_network_update_frequency = 1000 #frozen network update frequency
+        self.frozen_network_update_frequency = 10000 #frozen network update frequency
         self.gamma = 0.99  # discount factor
         self.action_repeat = 4
         self.update_frequency = 4
-        self.initial_exploration = 0.5 #1. #initial
+        self.initial_exploration = 1. #1. #initial
         self.final_exploration = 0.1
         self.exploration = self.initial_exploration 
-        self.final_exploration_frame = 10000
-        self.replay_start_size = 1000
+        self.final_exploration_frame = 1000000
+        self.replay_start_size = 50000
         #used by RMSProp
         self.lr = 0.00025
         self.min_squared_gradient = 0.01
