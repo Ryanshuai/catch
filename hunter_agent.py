@@ -7,6 +7,7 @@ Using Tensorflow to build the neural network.
 import numpy as np
 import tensorflow as tf
 
+
 # Deep Q Network off-policy
 class Hunter_Agent:
     def __init__(self):
@@ -33,16 +34,16 @@ class Hunter_Agent:
         self.memory_counter = 1
         self.update_counter = 0
         self.outloss = 0
-        self.actions_value = np.zeros([self.n_actions*self.n_robot], dtype = np.float32)
+        self.actions_value = np.zeros([self.n_robot, self.n_actions], dtype=np.float32)
         # w*h*m, this is the parameter of memory
         self.w = 84 #observation_w
         self.h = 84 #observation_h
         self.m = 4 #agent_history_length
-        self.memory = {'fi': np.zeros(shape=[self.memory_size, self.w, self.h, self.m], dtype = np.uint8),#0-255
-                  'a': np.zeros(shape=[self.memory_size, ], dtype=np.int8),
-                  'r': np.zeros(shape=[self.memory_size, ], dtype=np.int8),
-                  'Nfi': np.zeros(shape=[self.memory_size, self.w, self.h, self.m], dtype = np.uint8),
-                  'done': np.zeros(shape=[self.memory_size, ], dtype=np.uint8)}
+        self.memory = {'fi': np.zeros(shape=[self.memory_size, self.w, self.h, self.m], dtype=np.uint8),  # 0-255
+                       'a': np.zeros(shape=[self.memory_size, self.n_robot], dtype=np.int8),
+                       'r': np.zeros(shape=[self.memory_size, self.n_robot], dtype=np.int8),
+                       'Nfi': np.zeros(shape=[self.memory_size, self.w, self.h, self.m], dtype=np.uint8),
+                       'done': np.zeros(shape=[self.memory_size, ], dtype=np.uint8)}
 
         self._build_net()# consist of [frozen_net, training_net]
         self.saver = tf.train.Saver()
@@ -79,7 +80,8 @@ class Hunter_Agent:
             W_fc5 = tf.Variable(tf.truncated_normal([512, self.n_actions*self.n_robot], stddev=0.01), collections=collection_names)
             b_fc5 = tf.Variable(tf.constant(0.01, shape=[self.n_actions*self.n_robot]), collections=collection_names)
             h_fc5 = tf.matmul(h_fc4, W_fc5) + b_fc5
-            return h_fc5
+            h_fc5_reshape = tf.reshape(h_fc5, shape=[-1, self.n_robot, self.n_actions])
+            return h_fc5_reshape
 
         # ------------------ build frozen_net ------------------
         self.batch_Nfi = tf.placeholder(tf.float32, shape=[None, self.w, self.h, self.m]) / 255  # input Next State
@@ -91,11 +93,11 @@ class Hunter_Agent:
         col_train_net = ['training_variable_collection', tf.GraphKeys.GLOBAL_VARIABLES]
         self.q_fi_from_training_net = build_layers(self.batch_fi, col_train_net)
 
-        self.batch_a = tf.placeholder(tf.int32, [None, ])  # input Action
+        self.batch_a = tf.placeholder(tf.int32, [None, self.n_robot])  # input Action
         a_one_hot = tf.one_hot(self.batch_a, depth=self.n_actions, dtype=tf.float32)
-        self.q_fi_from_training_net_with_action = tf.reduce_sum(self.q_fi_from_training_net * a_one_hot, axis=1)  #dot product
+        self.q_fi_from_training_net_with_action = tf.reduce_sum(self.q_fi_from_training_net * a_one_hot, axis=-1)  #dot product
 
-        self.q_fi_suppose_by_frozen_net = tf.placeholder(tf.float32, shape=[None, ])
+        self.q_fi_suppose_by_frozen_net = tf.placeholder(tf.float32, shape=[None, self.n_robot])
         self.loss = tf.reduce_mean(tf.squared_difference(self.q_fi_suppose_by_frozen_net, self.q_fi_from_training_net_with_action))
         self._train_op = tf.train.RMSPropOptimizer(self.lr).minimize(self.loss)
 
@@ -118,8 +120,7 @@ class Hunter_Agent:
                 action[i] = np.random.randint(0, self.n_actions)
         else:
             self.actions_value = self.sess.run(self.q_fi_from_training_net, feed_dict={self.batch_fi: observation})[0]
-            for i in range(4):
-                action[i] = np.argmax(self.actions_value[5*i:5*i+5])
+            action = np.argmax(self.actions_value, axis=1)
 
         return action
 
@@ -145,9 +146,18 @@ class Hunter_Agent:
                 sample_index = np.random.choice(self.memory_counter, size=self.batch_size)
             #get q_fi_suppose_by_frozen_net
             q_Nfi_from_frozen_net = self.sess.run(self.q_Nfi_from_frozen_net, feed_dict={self.batch_Nfi: self.memory['Nfi'][sample_index]})
-            end_multiplier = -(self.memory['done'][sample_index] - 1)
-            q_fi_suppose_by_frozen_net = self.memory['r'][sample_index] + self.gamma * np.max(q_Nfi_from_frozen_net, axis=1) * end_multiplier
-            # train training_network by q_fi_suppose_by_frozen_net
+            # end_multiplier = -(self.memory['done'][sample_index] - 1)
+            # q_fi_suppose_by_frozen_net = self.memory['r'][sample_index] + self.gamma * np.max(q_Nfi_from_frozen_net, axis=1) * end_multiplier
+
+            done = self.memory['done'][sample_index]
+            q_fi_suppose_by_frozen_net = np.zeros([self.batch_size, self.n_robot])
+            for i in range(self.batch_size):
+                if done[i] == True:
+                    q_fi_suppose_by_frozen_net = self.memory['r'][sample_index]
+                else:
+                    q_fi_suppose_by_frozen_net = self.memory['r'][sample_index] + self.gamma * np.max(q_Nfi_from_frozen_net, axis=-1)
+
+                    # train training_network by q_fi_suppose_by_frozen_net
             _, self.outloss = self.sess.run([self._train_op, self.loss],
                 feed_dict={self.q_fi_suppose_by_frozen_net : q_fi_suppose_by_frozen_net,
                             self.batch_fi: self.memory['fi'][sample_index],
