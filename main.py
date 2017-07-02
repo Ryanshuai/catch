@@ -59,10 +59,10 @@ def hunting():
         print('hunter_score:',hunter_score,'\tescaper_score:',escaper_score)
         print('----------------------------------------------------------------------------------------------escaper_loss',escaper_printer[4])
 
-load_mode0 = 'hunter_agent_model/hunter0/mode1'
-load_mode1 = 'hunter_agent_model/hunter1/mode1'
-load_mode2 = 'hunter_agent_model/hunter2/mode1'
-load_mode3 = 'hunter_agent_model/hunter3/mode1'
+load_mode0 = 'hunter_agent_model/hunter0/mode0'
+load_mode1 = 'hunter_agent_model/hunter1/mode0'
+load_mode2 = 'hunter_agent_model/hunter2/mode0'
+load_mode3 = 'hunter_agent_model/hunter3/mode0'
 save_mode0 = 'hunter_agent_model/hunter0/model0/model.ckpt'
 save_mode1 = 'hunter_agent_model/hunter1/model0/model.ckpt'
 save_mode2 = 'hunter_agent_model/hunter2/model0/model.ckpt'
