@@ -2,10 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="d8417caf-6329-4a03-a18d-4aa1b88529e6" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/catch.iml" afterPath="$PROJECT_DIR$/.idea/catch.iml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/misc.xml" afterPath="$PROJECT_DIR$/.idea/misc.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/hunter_agent.py" afterPath="$PROJECT_DIR$/hunter_agent.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/environment.py" afterPath="$PROJECT_DIR$/environment.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/main.py" afterPath="$PROJECT_DIR$/main.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -20,8 +19,8 @@
       <file leaf-file-name="hunter_agent.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/hunter_agent.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="506">
-              <caret line="157" column="36" lean-forward="true" selection-start-line="157" selection-start-column="36" selection-end-line="157" selection-end-column="36" />
+            <state relative-caret-position="1569">
+              <caret line="166" column="33" lean-forward="false" selection-start-line="166" selection-start-column="20" selection-end-line="166" selection-end-column="33" />
               <folding>
                 <element signature="e#127#145#0" expanded="true" />
               </folding>
@@ -29,26 +28,14 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="main.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/main.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="22">
-              <caret line="29" column="0" lean-forward="false" selection-start-line="29" selection-start-column="0" selection-end-line="29" selection-end-column="0" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
       <file leaf-file-name="environment.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/environment.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="528">
-              <caret line="69" column="20" lean-forward="false" selection-start-line="69" selection-start-column="20" selection-end-line="69" selection-end-column="20" />
+            <state relative-caret-position="1400">
+              <caret line="59" column="29" lean-forward="true" selection-start-line="59" selection-start-column="29" selection-end-line="59" selection-end-column="29" />
               <folding>
-                <element signature="e#2703#3576#0" expanded="false" />
-                <element signature="e#3613#3805#0" expanded="false" />
-                <element signature="e#3842#4516#0" expanded="false" />
-                <element signature="e#4562#6241#0" expanded="false" />
+                <element signature="e#2841#3714#0" expanded="false" />
+                <element signature="e#3980#4654#0" expanded="false" />
               </folding>
             </state>
           </provider>
@@ -60,6 +47,18 @@
             <state relative-caret-position="0">
               <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
               <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="main.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/main.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="603">
+              <caret line="43" column="140" lean-forward="false" selection-start-line="43" selection-start-column="140" selection-end-line="43" selection-end-column="140" />
+              <folding>
+                <element signature="e#1#11#0" expanded="true" />
+              </folding>
             </state>
           </provider>
         </entry>
@@ -84,8 +83,8 @@
       <find>arg_max</find>
       <find>batch_Nfi</find>
       <find>batch_a</find>
-      <find>actions_value</find>
       <find>esca</find>
+      <find>actions_value</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -98,20 +97,20 @@
         <option value="$PROJECT_DIR$/../study_reinforcement-learning/FlappyBird/FlappyBirdDQN.py" />
         <option value="$PROJECT_DIR$/test.py" />
         <option value="$USER_HOME$/Desktop/test1.py" />
-        <option value="$PROJECT_DIR$/main.py" />
         <option value="$PROJECT_DIR$/escaper_agent.py" />
         <option value="$USER_HOME$/Desktop/test2.py" />
-        <option value="$PROJECT_DIR$/environment.py" />
         <option value="$PROJECT_DIR$/Ryan_resize.py" />
         <option value="$PROJECT_DIR$/hunter_agent.py" />
+        <option value="$PROJECT_DIR$/environment.py" />
+        <option value="$PROJECT_DIR$/main.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="-1688" />
-    <option name="y" value="-286" />
-    <option name="width" value="1696" />
-    <option name="height" value="1026" />
+    <option name="x" value="54" />
+    <option name="y" value="-8" />
+    <option name="width" value="1874" />
+    <option name="height" value="1096" />
   </component>
   <component name="ProjectView">
     <navigator proportions="" version="1">
@@ -314,7 +313,7 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="-1688" y="-286" width="1696" height="1026" extended-state="6" />
+    <frame x="54" y="-8" width="1874" height="1096" extended-state="6" />
     <editor active="true" />
     <layout>
       <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.12513782" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
@@ -370,7 +369,7 @@
           </properties>
         </breakpoint>
       </default-breakpoints>
-      <option name="time" value="15" />
+      <option name="time" value="16" />
     </breakpoint-manager>
     <watches-manager />
   </component>
@@ -502,27 +501,7 @@
     <entry file="file://$USER_HOME$/Desktop/test1.py" />
     <entry file="file://$USER_HOME$/Desktop/test2.py" />
     <entry file="file://$PROJECT_DIR$/escaper_agent.py" />
-    <entry file="file://$PROJECT_DIR$/main.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="22">
-          <caret line="29" column="0" lean-forward="false" selection-start-line="29" selection-start-column="0" selection-end-line="29" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/environment.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="528">
-          <caret line="69" column="20" lean-forward="false" selection-start-line="69" selection-start-column="20" selection-end-line="69" selection-end-column="20" />
-          <folding>
-            <element signature="e#2703#3576#0" expanded="false" />
-            <element signature="e#3613#3805#0" expanded="false" />
-            <element signature="e#3842#4516#0" expanded="false" />
-            <element signature="e#4562#6241#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://E:/Program Files/Anaconda3/envs/tensorflow/Lib/site-packages/tensorflow/python/ops/array_ops.py" />
     <entry file="file://$PROJECT_DIR$/Ryan_resize.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
@@ -531,18 +510,31 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://E:/Program Files/Anaconda3/envs/tensorflow/Lib/site-packages/tensorflow/python/ops/array_ops.py">
+    <entry file="file://$PROJECT_DIR$/environment.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1694">
-          <caret line="1990" column="4" lean-forward="false" selection-start-line="1990" selection-start-column="4" selection-end-line="1990" selection-end-column="4" />
-          <folding />
+        <state relative-caret-position="1400">
+          <caret line="59" column="29" lean-forward="true" selection-start-line="59" selection-start-column="29" selection-end-line="59" selection-end-column="29" />
+          <folding>
+            <element signature="e#2841#3714#0" expanded="false" />
+            <element signature="e#3980#4654#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/main.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="603">
+          <caret line="43" column="140" lean-forward="false" selection-start-line="43" selection-start-column="140" selection-end-line="43" selection-end-column="140" />
+          <folding>
+            <element signature="e#1#11#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/hunter_agent.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="506">
-          <caret line="157" column="36" lean-forward="true" selection-start-line="157" selection-start-column="36" selection-end-line="157" selection-end-column="36" />
+        <state relative-caret-position="1569">
+          <caret line="166" column="33" lean-forward="false" selection-start-line="166" selection-start-column="20" selection-end-line="166" selection-end-column="33" />
           <folding>
             <element signature="e#127#145#0" expanded="true" />
           </folding>

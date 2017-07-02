@@ -1,7 +1,6 @@
 
 import cv2
 from environment import ENV
-from escaper_agent import Escaper_Agent
 from hunter_agent import Hunter_Agent
 import numpy as np
 from Ryan_resize import ys_resize
@@ -30,10 +29,10 @@ def next_step(action):
 
 def hunting():
     for episode in range(EPISODE_NUMS):
-        init_action = np.zeros([5],dtype = np.float32)  # input_actions[1] == 1: flap the bird
+        init_action = np.zeros([4],dtype = np.float32)  # input_actions[1] == 1: flap the bird
         observation, reward_h, terminal = next_step(init_action)
         hunter_score = np.zeros([4])
-        hunter_printer = [[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]]
+        hunter_printer = [[0],[0],[0],[0]]
         while not terminal:
             action = hunter.choose_action(observation)
             nextObservation, reward_h, terminal = next_step(action)
@@ -41,9 +40,8 @@ def hunting():
             hunter.store_transition(observation, action, reward_h, nextObservation, terminal)
             hunter_printer = hunter.learn()
             observation = nextObservation
-        print('exploration',hunter_printer[0][1],'train_step',hunter_printer[0][2],'update',hunter_printer[0][3])
-        print('h0_loss',hunter_printer[0][4],'h1_loss',hunter_printer[1][4],'h2_loss',hunter_printer[2][4],'h3_loss',hunter_printer[3][4])
-        print('hunter0_action_value',hunter_printer[0][0],'h1av',hunter_printer[1][0],'h2av',hunter_printer[2][0],'h3av',hunter_printer[3][0])
+        print('exploration',hunter_printer[1],'train_step',hunter_printer[2],'update',hunter_printer[3],'hunter_loss',hunter_printer[4])
+        print('hunter0_action_value',hunter_printer[0][0],'h1av',hunter_printer[0][1],'h2av',hunter_printer[0][2],'h3av',hunter_printer[0][3])
 
 
 if __name__ == '__main__':

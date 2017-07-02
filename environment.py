@@ -56,7 +56,8 @@ class ENV:
 
         # check is_cached or is_escaped
         if self.is_catched():
-            reward_hunter += [1,1,1,1]
+            norm_reletive_dis = [np.linalg.norm(i - self.escaper_pos) for i in self.hunter_pos]
+            reward_hunter += [int(i<self.catch_dis) for i in  norm_reletive_dis]
             self.__init__()
             terminal = True
 
@@ -93,7 +94,7 @@ class ENV:
 
     def is_catched(self):
         norm_reletive_dis = [np.linalg.norm(i - self.escaper_pos) for i in self.hunter_pos]
-        if all([i<self.catch_dis for i in  norm_reletive_dis]):
+        if any([i<self.catch_dis for i in  norm_reletive_dis]):
             return True
         return False
 
@@ -117,7 +118,7 @@ class ENV:
 
     def move(self, input_actions):
         length = len(input_actions)
-        for i in range(length -1):
+        for i in range(length):
             if input_actions[i] == 1: #up, update y_speed
                 self.hunter_spd[i][1] -= self.hunter_acc * self.delta_t
             elif input_actions[i] == 2: #down
