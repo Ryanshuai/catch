@@ -127,7 +127,7 @@ class Hunter_Agent:
         else:
             self.actions_value = self.sess.run(self.q_fi_from_training_net, feed_dict={self.batch_fi: observation})[0]
             action = np.argmax(self.actions_value, axis=-1)
-            print('action_value',action_value)
+            print('action_value',self.actions_value)
         return action
 
 

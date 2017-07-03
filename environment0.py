@@ -61,7 +61,7 @@ class ENV:
     def frame_step(self, input_actions):
         # input_actions: 0->stay, 1->up, 2->down, 3->left, 4->right
         terminal = False
-        reward_hunter = 0
+        reward_hunter = -0.025
         # last_normdis = np.linalg.norm(self.hunter_pos - self.escaper_pos)
         # update the pos and speed
         self.move(input_actions)
@@ -71,7 +71,7 @@ class ENV:
 
         # check is_cached or is_escaped
         if self.is_catched():
-            reward_hunter = 1
+            reward_hunter += 1
             self.__init__()
             terminal = True
 
