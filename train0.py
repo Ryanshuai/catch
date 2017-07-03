@@ -24,6 +24,7 @@ def next_step(action):
         next_image = cv2.cvtColor(next_image, cv2.COLOR_BGR2GRAY)
         next_image = ys_resize(next_image)
         nextObservation[:, :,i] = next_image
+    print('-------------------------------------------reward',reward_h_sum)
     return nextObservation, reward_h_sum, terminal
 
 

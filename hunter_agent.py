@@ -19,13 +19,13 @@ class Hunter_Agent:
         self.memory_size = 100000  # replay memory size
         self.history_length = 4 #agent history length
         self.frozen_network_update_frequency = 1000 #frozen network update frequency
-        self.gamma = 0.9  # discount factor
+        self.gamma = 0.99  # discount factor
         self.action_repeat = 4
         self.update_frequency = 4
         self.initial_exploration = 1. #1. #initial
         self.final_exploration = 0.1
         self.exploration = self.initial_exploration 
-        self.final_exploration_frame = 10000
+        self.final_exploration_frame = 100000
         self.replay_start_size = 1000
         #used by RMSProp
         self.lr = 0.00025
@@ -127,6 +127,7 @@ class Hunter_Agent:
         else:
             self.actions_value = self.sess.run(self.q_fi_from_training_net, feed_dict={self.batch_fi: observation})[0]
             action = np.argmax(self.actions_value, axis=-1)
+            print('action_value',action_value)
         return action
 
 

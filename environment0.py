@@ -9,7 +9,7 @@ import pygame
 from random import uniform
 import random
 
-FPS = 90
+FPS = 150
 SCREEN_WHIDTH = 672
 SCREEN_HEIGHT = 672
 
@@ -62,15 +62,16 @@ class ENV:
         # input_actions: 0->stay, 1->up, 2->down, 3->left, 4->right
         terminal = False
         reward_hunter = 0
-        last_normdis = np.linalg.norm(self.hunter_pos - self.escaper_pos)
+        # last_normdis = np.linalg.norm(self.hunter_pos - self.escaper_pos)
         # update the pos and speed
         self.move(input_actions)
-        now_normdis = np.linalg.norm(self.hunter_pos - self.escaper_pos)
-        disreward = min(50/now_normdis,1)-min(50/last_normdis,1)
-        reward_hunter += disreward
+        # now_normdis = np.linalg.norm(self.hunter_pos - self.escaper_pos)
+        # disreward = min(50/now_normdis,1)-min(50/last_normdis,1)
+        # reward_hunter += disreward
 
         # check is_cached or is_escaped
         if self.is_catched():
+            reward_hunter = 1
             self.__init__()
             terminal = True
 
