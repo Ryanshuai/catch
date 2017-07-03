@@ -7,7 +7,8 @@ Using Tensorflow to build the neural network.
 import numpy as np
 import tensorflow as tf
 
-
+LOAD_MODEL = 'hunter_model/model1' #load model from here
+SAVE_MODEL = 'hunter_model/model0/model.ckpt' #save model to here
 # Deep Q Network off-policy
 class Hunter_Agent:
     def __init__(self):
@@ -18,7 +19,7 @@ class Hunter_Agent:
         self.memory_size = 100000  # replay memory size
         self.history_length = 4 #agent history length
         self.frozen_network_update_frequency = 1000 #frozen network update frequency
-        self.gamma = 0.99  # discount factor
+        self.gamma = 0.9  # discount factor
         self.action_repeat = 4
         self.update_frequency = 4
         self.initial_exploration = 1. #1. #initial
@@ -52,6 +53,11 @@ class Hunter_Agent:
         self.sess = tf.Session(config=tf_config)
         self.sess.run(tf.global_variables_initializer())
 
+        # ------------------ load model ------------------
+        ckpt = tf.train.get_checkpoint_state(LOAD_MODEL)
+        if ckpt and ckpt.model_checkpoint_path:
+            print('loading_model')
+            self.saver.restore(self.sess, ckpt.model_checkpoint_path)
 
     def _build_net(self):
         def build_layers(s, collection_names):
@@ -114,14 +120,13 @@ class Hunter_Agent:
 
     def choose_action(self, observation):
         observation = observation[np.newaxis, :]#[84,84,4] - > [1,84,84,4]
-        action = np.zeros([4])
+        action = np.zeros([self.n_robot])
         if np.random.uniform() < self.exploration: #exploration
-            for i in range(4):
+            for i in range(self.n_robot):
                 action[i] = np.random.randint(0, self.n_actions)
         else:
             self.actions_value = self.sess.run(self.q_fi_from_training_net, feed_dict={self.batch_fi: observation})[0]
-            action = np.argmax(self.actions_value, axis=1)
-
+            action = np.argmax(self.actions_value, axis=-1)
         return action
 
 
@@ -130,6 +135,7 @@ class Hunter_Agent:
             t_params = tf.get_collection('frozen_variable_collection')
             e_params = tf.get_collection('training_variable_collection')
             self.sess.run([tf.assign(t, e) for t, e in zip(t_params, e_params)])
+            self.saver.save(self.sess, SAVE_MODEL, global_step=self.train_step_counter)
             self.update_counter += 1
             
         if(self.exploration > self.final_exploration):

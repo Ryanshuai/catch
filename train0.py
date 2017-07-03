@@ -1,6 +1,6 @@
 
 import cv2
-from environment import ENV
+from environment0 import ENV
 from hunter_agent import Hunter_Agent
 import numpy as np
 from Ryan_resize import ys_resize
@@ -16,7 +16,7 @@ def next_step(action):
     reward_h_sum = 0
     terminal = False
     for i in range(ACTION_UPDATE_FREQUENCY):
-        next_image, reward_h, terminal = env.frame_step(action)
+        next_image, reward_h, terminal = env.frame_step(action[0])
         reward_h_sum += reward_h
 
         if terminal:
@@ -41,7 +41,7 @@ def hunting():
             hunter_printer = hunter.learn()
             observation = nextObservation
         print('exploration',hunter_printer[1],'train_step',hunter_printer[2],'update',hunter_printer[3],'hunter_loss',hunter_printer[4])
-        print('hunter0_action_value',hunter_printer[0][0],'h1av',hunter_printer[0][1],'h2av',hunter_printer[0][2],'h3av',hunter_printer[0][3])
+        print('hunter0_action_value',hunter_printer[0][0])
 
 
 if __name__ == '__main__':
