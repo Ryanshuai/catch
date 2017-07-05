@@ -1,174 +1,166 @@
-"""
-This part of code is the Escaper_Agent.
-All decisions are made in here.
-Using Tensorflow to build the neural network.
-"""
-
-import numpy as np
-import tensorflow as tf
-
-LOAD_MODEL = 'hunter_model/model1' #load model from here
-SAVE_MODEL = 'hunter_model/model0/model.ckpt' #save model to here
-# Deep Q Network off-policy
-class Hunter_Agent:
-    def __init__(self):
-        self.n_actions = 5 #up down left right remain
-        self.n_robot = 4
-
-        self.batch_size = 32
-        self.memory_size = 100000  # replay memory size
-        self.history_length = 4 #agent history length
-        self.frozen_network_update_frequency = 1000 #frozen network update frequency
-        self.gamma = 0.99  # discount factor
-        self.action_repeat = 4
-        self.update_frequency = 4
-        self.initial_exploration = 1. #1. #initial
-        self.final_exploration = 0.1
-        self.exploration = self.initial_exploration 
-        self.final_exploration_frame = 100000
-        self.replay_start_size = 1000
-        #used by RMSProp
-        self.lr = 0.00025
-        self.min_squared_gradient = 0.01
-        #counter and printer
-        self.train_step_counter = 1  # total learning step
-        self.memory_counter = 1
-        self.update_counter = 0
-        self.outloss = 0
-        self.actions_value = np.zeros([self.n_robot, self.n_actions], dtype=np.float32)
-        # w*h*m, this is the parameter of memory
-        self.w = 84 #observation_w
-        self.h = 84 #observation_h
-        self.m = 4 #agent_history_length
-        self.memory = {'fi': np.zeros(shape=[self.memory_size, self.w, self.h, self.m], dtype=np.uint8),  # 0-255
-                       'a': np.zeros(shape=[self.memory_size, self.n_robot], dtype=np.int8),
-                       'r': np.zeros(shape=[self.memory_size, self.n_robot], dtype=np.int8),
-                       'Nfi': np.zeros(shape=[self.memory_size, self.w, self.h, self.m], dtype=np.uint8),
-                       'done': np.zeros(shape=[self.memory_size, ], dtype=np.uint8)}
-
-        self._build_net()# consist of [frozen_net, training_net]
-        self.saver = tf.train.Saver()
-        tf_config = tf.ConfigProto()
-        tf_config.gpu_options.allow_growth = True
-        self.sess = tf.Session(config=tf_config)
-        self.sess.run(tf.global_variables_initializer())
-
-        # ------------------ load model ------------------
-        ckpt = tf.train.get_checkpoint_state(LOAD_MODEL)
-        if ckpt and ckpt.model_checkpoint_path:
-            print('loading_model')
-            self.saver.restore(self.sess, ckpt.model_checkpoint_path)
-
-    def _build_net(self):
-        def build_layers(s, collection_names):
-            ## conv1 layer ##
-            W_conv1 = tf.Variable(tf.truncated_normal([8, 8, 4, 32], stddev=0.01), collections=collection_names)
-            b_conv1 = tf.Variable(tf.constant(0.01, shape=[32]), collections=collection_names)
-            conv1 = tf.nn.conv2d(s, W_conv1, strides=[1, 4, 4, 1], padding='SAME')
-            h_conv1 = tf.nn.relu(conv1 + b_conv1)
-            ## conv2 layer ##
-            W_conv2 = tf.Variable(tf.truncated_normal([4, 4, 32, 64], stddev=0.01), collections=collection_names)
-            b_conv2 = tf.Variable(tf.constant(0.01, shape=[64]), collections=collection_names)
-            conv2 = tf.nn.conv2d(h_conv1, W_conv2, strides=[1, 2, 2, 1], padding='SAME')
-            h_conv2 = tf.nn.relu(conv2 + b_conv2)
-            ## conv3 layer ##
-            W_conv3 = tf.Variable(tf.truncated_normal([3, 3, 64, 64], stddev=0.01), collections=collection_names)
-            b_conv3 = tf.Variable(tf.constant(0.01, shape=[64]), collections=collection_names)
-            conv3 = tf.nn.conv2d(h_conv2, W_conv3, strides=[1, 1, 1, 1], padding='SAME')
-            h_conv3 = tf.nn.relu(conv3 + b_conv3)
-            # [n_samples, 11, 11, 64] ->> [n_samples, 7744]
-            h_conv3_flat = tf.reshape(h_conv3, [-1, 7744])
-            ## fc4 layer ##
-            W_fc4 = tf.Variable(tf.truncated_normal([7744, 512], stddev=0.01), collections=collection_names)
-            b_fc4 = tf.Variable(tf.constant(0.01, shape=[512]), collections=collection_names)
-            h_fc4 = tf.nn.relu(tf.matmul(h_conv3_flat, W_fc4) + b_fc4)
-            ## fc5 layer ##
-            W_fc5 = tf.Variable(tf.truncated_normal([512, self.n_actions*self.n_robot], stddev=0.01), collections=collection_names)
-            b_fc5 = tf.Variable(tf.constant(0.01, shape=[self.n_actions*self.n_robot]), collections=collection_names)
-            h_fc5 = tf.matmul(h_fc4, W_fc5) + b_fc5
-            h_fc5_reshape = tf.reshape(h_fc5, shape=[-1, self.n_robot, self.n_actions])
-            return h_fc5_reshape
-
-        # ------------------ build frozen_net ------------------
-        self.batch_Nfi = tf.placeholder(tf.float32, shape=[None, self.w, self.h, self.m]) / 255  # input Next State
-        col_frozen_net = ['frozen_variable_collection', tf.GraphKeys.GLOBAL_VARIABLES]
-        self.q_Nfi_from_frozen_net = build_layers(self.batch_Nfi, col_frozen_net)
-
-        # ------------------ build training_net ------------------
-        self.batch_fi = tf.placeholder(tf.float32, shape=[None, self.w, self.h, self.m]) / 255
-        col_train_net = ['training_variable_collection', tf.GraphKeys.GLOBAL_VARIABLES]
-        self.q_fi_from_training_net = build_layers(self.batch_fi, col_train_net)
-
-        self.batch_a = tf.placeholder(tf.int32, [None, self.n_robot])  # input Action
-        a_one_hot = tf.one_hot(self.batch_a, depth=self.n_actions, dtype=tf.float32)
-        self.q_fi_from_training_net_with_action = tf.reduce_sum(self.q_fi_from_training_net * a_one_hot, axis=-1)  #dot product
-
-        self.q_fi_suppose_by_frozen_net = tf.placeholder(tf.float32, shape=[None, self.n_robot])
-        self.loss = tf.reduce_mean(tf.squared_difference(self.q_fi_suppose_by_frozen_net, self.q_fi_from_training_net_with_action))
-        self._train_op = tf.train.RMSPropOptimizer(self.lr).minimize(self.loss)
 
 
-    def store_transition(self, fi, a, r, Nfi, done):
-        index = self.memory_counter % self.memory_size
-        self.memory['fi'][index] = fi
-        self.memory['a'][index] = a
-        self.memory['r'][index] = r
-        self.memory['Nfi'][index] = Nfi
-        self.memory['done'][index] = done
-        self.memory_counter += 1
 
 
-    def choose_action(self, observation):
-        observation = observation[np.newaxis, :]#[84,84,4] - > [1,84,84,4]
-        action = np.zeros([self.n_robot])
-        if np.random.uniform() < self.exploration: #exploration
-            for i in range(self.n_robot):
-                action[i] = np.random.randint(0, self.n_actions)
-        else:
-            self.actions_value = self.sess.run(self.q_fi_from_training_net, feed_dict={self.batch_fi: observation})[0]
-            action = np.argmax(self.actions_value, axis=-1)
-            print('action_value',self.actions_value)
-        return action
+#Implementing the network itself
+class FrozenQNetwork():
+    def __init__(self,act_num):
+        self.collection = 'frozen_variable'
+        self.w = 84
+        self.h = 84
+        self.d = 4
+
+        self.flattened_batch_fi = tf.placeholder(shape=[None, 28224], dtype=tf.float32)#[bs,28224]
+        self.batch_fi = tf.reshape(self.flattened_batch_fi, shape=[-1, self.w, self.h, self.d])#[bs,w=84,h=84,d=4]
+
+        self.imageIn = tf.reshape(self.scalarInput, shape=[-1, 84, 84, 3])
+        self.batch_Nfi = tf.placeholder(tf.float32, shape=[None, self.w, self.h, self.d])#[bs,w=84,h=84,d=4]
+        ## conv1 layer ##
+        self.W_conv1 = tf.Variable(tf.truncated_normal([8, 8, 4, 32], stddev=0.01), collections=self.collection)
+        self.b_conv1 = tf.Variable(tf.constant(0.01, shape=[32]), collections=self.collection)
+        self.conv1 = tf.nn.conv2d(self.batch_fi, self.W_conv1, strides=[1, 4, 4, 1], padding='SAME')
+        self.h_conv1 = tf.nn.relu(self.conv1 + self.b_conv1)#[bs,21,21,32]
+        ## conv2 layer ##
+        self.W_conv2 = tf.Variable(tf.truncated_normal([4, 4, 32, 64], stddev=0.01), collections=self.collection)
+        self.b_conv2 = tf.Variable(tf.constant(0.01, shape=[64]), collections=self.collection)
+        self.conv2 = tf.nn.conv2d(self.h_conv1, self.W_conv2, strides=[1, 2, 2, 1], padding='SAME')
+        self.h_conv2 = tf.nn.relu(self.conv2 + self.b_conv2)#[bs,11,11,64]
+        ## conv3 layer ##
+        self.W_conv3 = tf.Variable(tf.truncated_normal([3, 3, 64, 64], stddev=0.01), collections=self.collection)
+        self.b_conv3 = tf.Variable(tf.constant(0.01, shape=[64]), collections=self.collection)
+        self.conv3 = tf.nn.conv2d(self.h_conv2, self.W_conv3, strides=[1, 1, 1, 1], padding='SAME')
+        self. h_conv3 = tf.nn.relu(self.conv3 + self.b_conv3)#[bs,11,11,64]
+
+        self.h_conv3_flat = tf.reshape(self.h_conv3, [-1, 7744])#[bs, 7744]
+        ## fc4 layer ##
+        self.W_fc4 = tf.Variable(tf.truncated_normal([7744, 1024], stddev=0.01), collections=self.collection)
+        self.b_fc4 = tf.Variable(tf.constant(0.01, shape=[1024]), collections=self.collection)
+        self.h_fc4 = tf.nn.relu(tf.matmul(self.h_conv3_flat, self.W_fc4) + self.b_fc4)#[bs, 1024]
+        ## fc5 layer ##
+        self.W_fc5 = tf.Variable(tf.truncated_normal([1024, 64], stddev=0.01),collections=self.collection)
+        self.b_fc5 = tf.Variable(tf.constant(0.01, shape=[64]), collections=self.collection)
+        self.h_fc5 = tf.matmul(self.h_fc4, self.W_fc5) + self.b_fc5#[bs, 64]
+
+        self.streamA, self.streamV = tf.split(self.h_fc5, 2, 1)#[bs, 32],#[bs, 32]
+        xavier_init = tf.contrib.layers.xavier_initializer()
+        self.AW = tf.Variable(xavier_init([32,act_num])) #[32,act_num]
+        self.VW = tf.Variable(xavier_init([32,1])) #[32,1]
+        self.Advantage = tf.matmul(self.streamA,self.AW) #[bs,act_num]
+        self.Value = tf.matmul(self.streamV,self.VW) #[bs,1]
+        # Then combine them together to get our final Q-values.
+        self.Qout = self.Value + tf.subtract(self.Advantage,tf.reduce_mean(self.Advantage, axis=1, keep_dims=True))#[bs,act_num]
 
 
-    def learn(self):
-        if self.train_step_counter % self.frozen_network_update_frequency == 0:
-            t_params = tf.get_collection('frozen_variable_collection')
-            e_params = tf.get_collection('training_variable_collection')
-            self.sess.run([tf.assign(t, e) for t, e in zip(t_params, e_params)])
-            self.saver.save(self.sess, SAVE_MODEL, global_step=self.train_step_counter)
-            self.update_counter += 1
-            
-        if(self.exploration > self.final_exploration):
-            self.exploration -= ( self.initial_exploration - self.final_exploration) / self.final_exploration_frame
-        else:
-            self.exploration = self.final_exploration
+class TrainingQNetwork():
+    def __init__(self, act_num):
+        self.collection = 'training_variable'
+        self.w = 84
+        self.h = 84
+        self.d = 4
 
-        
-        if self.memory_counter > self.replay_start_size:
-            # sample batch memory from all memory
-            if self.memory_counter > self.memory_size:
-                sample_index = np.random.choice(self.memory_size, size=self.batch_size)
-            else:
-                sample_index = np.random.choice(self.memory_counter, size=self.batch_size)
-            #get q_fi_suppose_by_frozen_net
-            q_Nfi_from_frozen_net = self.sess.run(self.q_Nfi_from_frozen_net, feed_dict={self.batch_Nfi: self.memory['Nfi'][sample_index]})
-            # end_multiplier = -(self.memory['done'][sample_index] - 1)
-            # q_fi_suppose_by_frozen_net = self.memory['r'][sample_index] + self.gamma * np.max(q_Nfi_from_frozen_net, axis=1) * end_multiplier
+        self.flattened_batch_fi = tf.placeholder(shape=[None, 28224], dtype=tf.float32)#[bs,28224]
+        self.batch_fi = tf.reshape(self.flattened_batch_fi, shape=[-1, self.w, self.h, self.d])#[bs,w=84,h=84,d=4]
+        ## conv1 layer ##
+        self.W_conv1 = tf.Variable(tf.truncated_normal([8, 8, 4, 32], stddev=0.01), collections=self.collection)
+        self.b_conv1 = tf.Variable(tf.constant(0.01, shape=[32]), collections=self.collection)
+        self.conv1 = tf.nn.conv2d(self.batch_fi, self.W_conv1, strides=[1, 4, 4, 1], padding='SAME')
+        self.h_conv1 = tf.nn.relu(self.conv1 + self.b_conv1)  # [bs,21,21,32]
+        ## conv2 layer ##
+        self.W_conv2 = tf.Variable(tf.truncated_normal([4, 4, 32, 64], stddev=0.01), collections=self.collection)
+        self.b_conv2 = tf.Variable(tf.constant(0.01, shape=[64]), collections=self.collection)
+        self.conv2 = tf.nn.conv2d(self.h_conv1, self.W_conv2, strides=[1, 2, 2, 1], padding='SAME')
+        self.h_conv2 = tf.nn.relu(self.conv2 + self.b_conv2)  # [bs,11,11,64]
+        ## conv3 layer ##
+        self.W_conv3 = tf.Variable(tf.truncated_normal([3, 3, 64, 64], stddev=0.01), collections=self.collection)
+        self.b_conv3 = tf.Variable(tf.constant(0.01, shape=[64]), collections=self.collection)
+        self.conv3 = tf.nn.conv2d(self.h_conv2, self.W_conv3, strides=[1, 1, 1, 1], padding='SAME')
+        self.h_conv3 = tf.nn.relu(self.conv3 + self.b_conv3)  # [bs,11,11,64]
 
-            done = self.memory['done'][sample_index]
-            q_fi_suppose_by_frozen_net = np.zeros([self.batch_size, self.n_robot])
-            for i in range(self.batch_size):
-                if done[i] == True:
-                    q_fi_suppose_by_frozen_net = self.memory['r'][sample_index]
-                else:
-                    q_fi_suppose_by_frozen_net = self.memory['r'][sample_index] + self.gamma * np.max(q_Nfi_from_frozen_net, axis=-1)
+        self.h_conv3_flat = tf.reshape(self.h_conv3, [-1, 7744])  # [bs, 7744]
+        ## fc4 layer ##
+        self.W_fc4 = tf.Variable(tf.truncated_normal([7744, 1024], stddev=0.01), collections=self.collection)
+        self.b_fc4 = tf.Variable(tf.constant(0.01, shape=[1024]), collections=self.collection)
+        self.h_fc4 = tf.nn.relu(tf.matmul(self.h_conv3_flat, self.W_fc4) + self.b_fc4)  # [bs, 1024]
+        ## fc5 layer ##
+        self.W_fc5 = tf.Variable(tf.truncated_normal([1024, 64], stddev=0.01), collections=self.collection)
+        self.b_fc5 = tf.Variable(tf.constant(0.01, shape=[64]), collections=self.collection)
+        self.h_fc5 = tf.matmul(self.h_fc4, self.W_fc5) + self.b_fc5  # [bs, 64]
 
-                    # train training_network by q_fi_suppose_by_frozen_net
-            _, self.outloss = self.sess.run([self._train_op, self.loss],
-                feed_dict={self.q_fi_suppose_by_frozen_net : q_fi_suppose_by_frozen_net,
-                            self.batch_fi: self.memory['fi'][sample_index],
-                            self.batch_a: self.memory['a'][sample_index]})
-            self.train_step_counter += 1
-                            
-        return self.actions_value, self.exploration,self.train_step_counter, self.update_counter,self.outloss
+        self.streamA, self.streamV = tf.split(self.h_fc5, 2, 1)  # [bs, 32],#[bs, 32]
+        xavier_init = tf.contrib.layers.xavier_initializer()
+        self.AW = tf.Variable(xavier_init([32, act_num]))  # [32,act_num]
+        self.VW = tf.Variable(xavier_init([32, 1]))  # [32,1]
+        self.Advantage = tf.matmul(self.streamA, self.AW)  # [bs,act_num]
+        self.Value = tf.matmul(self.streamV, self.VW)  # [bs,1]
+        # Then combine them together to get our final Q-values.
+        self.Qout = self.Value + tf.subtract(self.Advantage,tf.reduce_mean(self.Advantage, axis=1, keep_dims=True))  # [bs,act_num]
+        self.predict = tf.argmax(self.Qout, 1)  # [bs]
+
+        # Below we obtain the loss by taking the sum of squares difference between the target and prediction Q values.
+        self.targetQ = tf.placeholder(shape=[None], dtype=tf.float32)  # bs
+        self.actions = tf.placeholder(shape=[None], dtype=tf.int32)  # bs
+        self.actions_onehot = tf.one_hot(self.actions, act_num, dtype=tf.float32)  #[bs,act_num]
+
+        self.Q = tf.reduce_sum(tf.multiply(self.Qout, self.actions_onehot), axis=1)  # bs
+
+        self.td_error = tf.square(self.targetQ - self.Q)  # bs
+        self.loss = tf.reduce_mean(self.td_error)  # 1
+        self.trainer = tf.train.AdamOptimizer(learning_rate=0.0001)
+        self.updateModel = self.trainer.minimize(self.loss)
+
+
+class ExperienceMemory():
+    import numpy as np
+    def __init__(self, memory_size=50000):
+        self.memory = []
+        self.memory_size = memory_size
+
+    def add(self, fi, a, r, Nfi, done):
+        s = np.reshape(fi, [28224])
+        s1 = np.reshape(Nfi, [28224])
+        experience = np.reshape(np.array([s,a,r,s1,d]),[1,5])
+        if len(self.memory) + len(experience) >= self.memory_size:
+            self.memory[0:(len(experience) + len(self.memory)) - self.memory_size] = []
+        self.memory.extend(experience)
+
+    def sample(self, size):
+        return np.reshape(np.array(random.sample(self.memory, size)), [size, 5])
+
+
+def choose_action(sess,training_net,fi,exploration,pre_train):
+    import numpy as np
+    if np.random.rand(1) < exploration or pre_train:
+        a = np.random.randint(0, 4)
+    else:
+        a = sess.run(training_net.predict, feed_dict={training_net.batch_fi: [fi]})[0]
+    return a
+
+
+def train_traing_net(sess,training_net,frozen_net,Memory,batch_size=32,gamma=0.99):
+    trainBatch = Memory.sample(batch_size)
+    # Below we perform the Double-DQN update to the target Q-values
+    Q_by_frozen_net = sess.run(frozen_net.Qout, feed_dict={frozen_net.batch_fi: np.vstack(trainBatch[:, 3])})#[bs,act_num]
+    argmax = sess.run(training_net.predict,feed_dict={training_net.batch_fi: np.vstack(trainBatch[:, 3])}) # [bs]
+    end_multiplier = -(trainBatch[:, 4] - 1)#array([bs])
+    doubleQ = Q_by_frozen_net[range(batch_size), argmax]#array([bs])
+    targetQ = trainBatch[:, 2] + (gamma * doubleQ * end_multiplier) #array([bs])
+    # Update the network with our target values.
+    _ = sess.run(training_net.updateModel,
+                 feed_dict={training_net.batch_fi: np.vstack(trainBatch[:, 0]),
+                            training_net.targetQ: targetQ,
+                            training_net.actions: trainBatch[:, 1]})
+
+
+def update_frozen_net(sess,ur=0.001):
+    import tensorflow as tf
+    frozen_params = tf.get_collection('frozen_variable')
+    training_params = tf.get_collection('training_variable')
+    op_holder = []
+    for idx, var in enumerate(frozen_params):
+        op = frozen_params[idx].assign((1 - ur) *var.value() + ur * training_params[idx].value())
+        op_holder.append(op)
+    for op in op_holder:
+        sess.run(op)
+
+
+
