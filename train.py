@@ -5,7 +5,8 @@ from game import wrapped_flappy_bird as bird
 import numpy as np
 import cv2
 
-counter = Counter({'total_steps':0,'train_steps':0,'episode':0,'step_in_episode':0,'r_sum_in_episode':0,'loss':0})
+counter = Counter({'total_steps':0,'train_steps':0,'episode':0,'step_in_episode':0,
+                   'r_sum_in_episode':0,'loss':0,'exploration':0})
 num_episodes = 10*1000
 max_step_in_one_episode = 1000000000
 update_freq = 4
@@ -52,7 +53,7 @@ with tf.Session() as sess:
         counter['step_in_episode'] = 0
         counter['r_sum_in_episode'] = 0
         while counter['step_in_episode'] < max_step_in_one_episode:
-            a = chooser.choose_action(sess,training_net,fi,counter['total_steps'])
+            a,counter['exploration'] = chooser.choose_action(sess,training_net,fi,counter['total_steps'])
             Nfi,r,done = next_step(a)
             counter.update(('total_steps',))
             memory.add(fi,a,r,Nfi,done)

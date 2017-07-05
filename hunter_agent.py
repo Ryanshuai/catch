@@ -167,7 +167,7 @@ class Chooser():
             a = np.random.randint(0, self.act_num)
         else:
             a = sess.run(training_net.predict, feed_dict={training_net.flattened_batch_fi: [flattened_fi]})[0]
-        return a
+        return a,self.e
 
 
 class Updater():
