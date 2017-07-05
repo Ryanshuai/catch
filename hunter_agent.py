@@ -115,9 +115,9 @@ class ExperienceMemory():
         self.memory_size = memory_size
 
     def add(self, fi, a, r, Nfi, done):
-        s = np.reshape(fi, [28224])
-        s1 = np.reshape(Nfi, [28224])
-        experience = np.reshape(np.array([s,a,r,s1,done]),[1,5])
+        flattened_fi = np.reshape(fi, [28224])
+        flattened_Nfi = np.reshape(Nfi, [28224])
+        experience = np.reshape(np.array([flattened_fi,a,r,flattened_Nfi,done]),[1,5])
         if len(self.memory) + len(experience) >= self.memory_size:
             self.memory[0:(len(experience) + len(self.memory)) - self.memory_size] = []
         self.memory.extend(experience)
@@ -135,7 +135,7 @@ class Model():
 
         if not os.path.exists(self.path):
             os.makedirs(self.path)
-        self.saver.save(sess, self.path + '/model-' + str(episode) + '.cptk')
+        self.saver.save(sess, self.path + '/model.cptk', global_step=episode)
 
     def restore(self,sess):
         if not os.path.exists(self.path):
@@ -147,7 +147,8 @@ class Model():
 
 
 class Chooser():
-    def __init__(self,num_pre_train=1000):
+    def __init__(self,act_num,num_pre_train=1000):
+        self.act_num = act_num
         self.initial_exploration = 1.  # 1. #initial
         self.final_exploration = 0.1
         self.e = self.initial_exploration
@@ -155,6 +156,7 @@ class Chooser():
         self.num_pre_train=num_pre_train
 
     def choose_action(self,sess,training_net,fi,total_step):
+        flattened_fi = np.reshape(fi, [28224])
         if total_step>self.num_pre_train:
             if (self.e > self.final_exploration):
                 self.e -= (self.initial_exploration - self.final_exploration) / self.final_exploration_frame
@@ -162,9 +164,9 @@ class Chooser():
                 self.e = self.final_exploration
 
         if np.random.rand(1) < self.e or total_step < self.num_pre_train:
-            a = np.random.randint(0, 4)
+            a = np.random.randint(0, self.act_num)
         else:
-            a = sess.run(training_net.predict, feed_dict={training_net.batch_fi: [fi]})[0]
+            a = sess.run(training_net.predict, feed_dict={training_net.flattened_batch_fi: [flattened_fi]})[0]
         return a
 
 
@@ -190,7 +192,7 @@ class Ploter():
     def recoder_len(self):
         return len(self.rList)
 
-    def save(self,r_sum_in_episode):
+    def plt_save(self,r_sum_in_episode):
         self.rList.append(r_sum_in_episode)
 
     def plot(self):
@@ -203,16 +205,17 @@ class Ploter():
 def train_traing_net(sess,training_net,frozen_net,Memory,batch_size=32,gamma=0.99):
     trainBatch = Memory.sample(batch_size)
     # Below we perform the Double-DQN update to the target Q-values
-    Q_by_frozen_net = sess.run(frozen_net.Qout, feed_dict={frozen_net.batch_fi: np.vstack(trainBatch[:, 3])})#[bs,act_num]
-    argmax = sess.run(training_net.predict,feed_dict={training_net.batch_fi: np.vstack(trainBatch[:, 3])}) # [bs]
+    Q_by_frozen_net = sess.run(frozen_net.Qout, feed_dict={frozen_net.flattened_batch_fi: np.vstack(trainBatch[:, 3])})#[bs,act_num]
+    argmax = sess.run(training_net.predict,feed_dict={training_net.flattened_batch_fi: np.vstack(trainBatch[:, 3])}) # [bs]
     end_multiplier = -(trainBatch[:, 4] - 1)#array([bs])
     doubleQ = Q_by_frozen_net[range(batch_size), argmax]#array([bs])
     targetQ = trainBatch[:, 2] + (gamma * doubleQ * end_multiplier) #array([bs])
     # Update the network with our target values.
-    _ = sess.run(training_net.updateModel,
-                 feed_dict={training_net.batch_fi: np.vstack(trainBatch[:, 0]),
+    _,loss = sess.run([training_net.updateModel, training_net.loss],
+                 feed_dict={training_net.flattened_batch_fi: np.vstack(trainBatch[:, 0]),
                             training_net.targetQ: targetQ,
                             training_net.actions: trainBatch[:, 1]})
+    return loss
 
 
 

@@ -1,38 +1,59 @@
 import hunter_agent as HA
 import tensorflow as tf
 from collections import Counter
+from game import wrapped_flappy_bird as bird
+import numpy as np
+import cv2
 
-counter = Counter({'total_steps':0,'train_steps':0,'episode':0,'step_in_episode':0,'r_sum_in_episode':0})
+counter = Counter({'total_steps':0,'train_steps':0,'episode':0,'step_in_episode':0,'r_sum_in_episode':0,'loss':0})
 num_episodes = 10*1000
-max_step_in_one_episode = 100
+max_step_in_one_episode = 1000000000
 update_freq = 4
 num_pre_train=1000
 save_mode_every = 1000
 
 tf.reset_default_graph()
 
-training_net = HA.TrainingQNetwork(act_num=5)
-frozen_net = HA.FrozenQNetwork(act_num=5)
+env = bird.GameState()
+training_net = HA.TrainingQNetwork(act_num=2)
+frozen_net = HA.FrozenQNetwork(act_num=2)
 memory = HA.ExperienceMemory()
 model = HA.Model()
-chooser = HA.Chooser(num_pre_train=num_pre_train)
+chooser = HA.Chooser(act_num=2,num_pre_train=num_pre_train)
 updater = HA.Updater()
 ploter = HA.Ploter()
 
+
+
+def next_step(a):
+    action = np.zeros(shape=[2, ])
+    action[a] = 1
+    nextObservation = np.zeros(shape=[84, 84, 4], dtype = np.uint8)
+    reward = 0
+    reward_sum = 0
+    terminal = False
+    for i in range(4):
+        next_image, reward, terminal = env.frame_step(action)
+        reward_sum += reward
+        # terminal = True, flappyBird is inited automatically
+        if terminal:
+            break
+        next_image = cv2.cvtColor(cv2.resize(next_image, (84, 84)), cv2.COLOR_BGR2GRAY)
+        nextObservation[:, :, i] = next_image
+    return nextObservation, reward_sum , terminal
 
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     model.restore(sess)
     for episode in range(num_episodes):
         counter.update(('episode',))
-        fi = env.reset()
-        done = False
+        fi, r, done = next_step(0)
 
         counter['step_in_episode'] = 0
         counter['r_sum_in_episode'] = 0
         while counter['step_in_episode'] < max_step_in_one_episode:
             a = chooser.choose_action(sess,training_net,fi,counter['total_steps'])
-            Nfi,r,done = env.step(a)
+            Nfi,r,done = next_step(a)
             counter.update(('total_steps',))
             memory.add(fi,a,r,Nfi,done)
             fi = Nfi
@@ -40,14 +61,16 @@ with tf.Session() as sess:
             counter['r_sum_in_episode'] += r
 
             if counter['total_steps'] > num_pre_train and counter['total_steps'] % update_freq == 0:
-                HA.train_traing_net(sess,training_net,frozen_net,memory)
+                counter['loss'] = HA.train_traing_net(sess,training_net,frozen_net,memory)
                 counter.update(('train_steps',))
                 updater.update_frozen_net(sess)
 
-            if done==True:
+            print(counter)
+            if done == True:
                 break
 
-        ploter.save(counter['r_sum_in_episode'])
-
+        ploter.plt_save(counter['r_sum_in_episode'])
         if counter['episode'] % save_mode_every == 0:
-            model.store(sess,counter['episode'])
+            model.store(sess, counter['episode'])
+
+ploter.plot()
