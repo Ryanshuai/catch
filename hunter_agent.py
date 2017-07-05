@@ -1,11 +1,13 @@
-
-
-
+import tensorflow as tf
+import numpy as np
+import matplotlib.pyplot as plt
+import random
+import os
 
 #Implementing the network itself
 class FrozenQNetwork():
     def __init__(self,act_num):
-        self.collection = 'frozen_variable'
+        self.collection = ['frozen_variable', tf.GraphKeys.GLOBAL_VARIABLES]
         self.w = 84
         self.h = 84
         self.d = 4
@@ -13,8 +15,6 @@ class FrozenQNetwork():
         self.flattened_batch_fi = tf.placeholder(shape=[None, 28224], dtype=tf.float32)#[bs,28224]
         self.batch_fi = tf.reshape(self.flattened_batch_fi, shape=[-1, self.w, self.h, self.d])#[bs,w=84,h=84,d=4]
 
-        self.imageIn = tf.reshape(self.scalarInput, shape=[-1, 84, 84, 3])
-        self.batch_Nfi = tf.placeholder(tf.float32, shape=[None, self.w, self.h, self.d])#[bs,w=84,h=84,d=4]
         ## conv1 layer ##
         self.W_conv1 = tf.Variable(tf.truncated_normal([8, 8, 4, 32], stddev=0.01), collections=self.collection)
         self.b_conv1 = tf.Variable(tf.constant(0.01, shape=[32]), collections=self.collection)
@@ -53,7 +53,7 @@ class FrozenQNetwork():
 
 class TrainingQNetwork():
     def __init__(self, act_num):
-        self.collection = 'training_variable'
+        self.collection = ['training_variable', tf.GraphKeys.GLOBAL_VARIABLES]
         self.w = 84
         self.h = 84
         self.d = 4
@@ -110,7 +110,6 @@ class TrainingQNetwork():
 
 
 class ExperienceMemory():
-    import numpy as np
     def __init__(self, memory_size=50000):
         self.memory = []
         self.memory_size = memory_size
@@ -118,7 +117,7 @@ class ExperienceMemory():
     def add(self, fi, a, r, Nfi, done):
         s = np.reshape(fi, [28224])
         s1 = np.reshape(Nfi, [28224])
-        experience = np.reshape(np.array([s,a,r,s1,d]),[1,5])
+        experience = np.reshape(np.array([s,a,r,s1,done]),[1,5])
         if len(self.memory) + len(experience) >= self.memory_size:
             self.memory[0:(len(experience) + len(self.memory)) - self.memory_size] = []
         self.memory.extend(experience)
@@ -127,13 +126,78 @@ class ExperienceMemory():
         return np.reshape(np.array(random.sample(self.memory, size)), [size, 5])
 
 
-def choose_action(sess,training_net,fi,exploration,pre_train):
-    import numpy as np
-    if np.random.rand(1) < exploration or pre_train:
-        a = np.random.randint(0, 4)
-    else:
-        a = sess.run(training_net.predict, feed_dict={training_net.batch_fi: [fi]})[0]
-    return a
+class Model():
+    def __init__(self,path="./model"):
+        self.saver = tf.train.Saver()
+        self.path = path
+
+    def store(self,sess,episode):
+
+        if not os.path.exists(self.path):
+            os.makedirs(self.path)
+        self.saver.save(sess, self.path + '/model-' + str(episode) + '.cptk')
+
+    def restore(self,sess):
+        if not os.path.exists(self.path):
+            print('no Model')
+        else:
+            print('Loading Model...')
+            ckpt = tf.train.get_checkpoint_state(self.path)
+            self.saver.restore(sess, ckpt.model_checkpoint_path)
+
+
+class Chooser():
+    def __init__(self,num_pre_train=1000):
+        self.initial_exploration = 1.  # 1. #initial
+        self.final_exploration = 0.1
+        self.e = self.initial_exploration
+        self.final_exploration_frame = 100000
+        self.num_pre_train=num_pre_train
+
+    def choose_action(self,sess,training_net,fi,total_step):
+        if total_step>self.num_pre_train:
+            if (self.e > self.final_exploration):
+                self.e -= (self.initial_exploration - self.final_exploration) / self.final_exploration_frame
+            else:
+                self.e = self.final_exploration
+
+        if np.random.rand(1) < self.e or total_step < self.num_pre_train:
+            a = np.random.randint(0, 4)
+        else:
+            a = sess.run(training_net.predict, feed_dict={training_net.batch_fi: [fi]})[0]
+        return a
+
+
+class Updater():
+    def __init__(self):
+        ur = 0.001
+        frozen_params = tf.get_collection('frozen_variable')
+        training_params = tf.get_collection('training_variable')
+        self.op_holder = []
+        for idx, var in enumerate(frozen_params):
+            op = frozen_params[idx].assign((1 - ur) * var.value() + ur * training_params[idx].value())
+            self.op_holder.append(op)
+
+    def update_frozen_net(self,sess):
+        for op in self.op_holder:
+            sess.run(op)
+
+
+class Ploter():
+    def __init__(self):
+        self.rList = []
+
+    def recoder_len(self):
+        return len(self.rList)
+
+    def save(self,r_sum_in_episode):
+        self.rList.append(r_sum_in_episode)
+
+    def plot(self):
+        rMat = np.resize(np.array(rList), [len(rList) // 100, 100])
+        rMean = np.average(rMat, 1)
+        plt.plot(rMean)
+
 
 
 def train_traing_net(sess,training_net,frozen_net,Memory,batch_size=32,gamma=0.99):
@@ -151,16 +215,8 @@ def train_traing_net(sess,training_net,frozen_net,Memory,batch_size=32,gamma=0.9
                             training_net.actions: trainBatch[:, 1]})
 
 
-def update_frozen_net(sess,ur=0.001):
-    import tensorflow as tf
-    frozen_params = tf.get_collection('frozen_variable')
-    training_params = tf.get_collection('training_variable')
-    op_holder = []
-    for idx, var in enumerate(frozen_params):
-        op = frozen_params[idx].assign((1 - ur) *var.value() + ur * training_params[idx].value())
-        op_holder.append(op)
-    for op in op_holder:
-        sess.run(op)
+
+
 
 
 
