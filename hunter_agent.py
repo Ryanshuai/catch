@@ -173,7 +173,7 @@ class Chooser():
 
 
 class Trainer():
-    def __int__(self,training_net,frozen_net,memory,batch_size = 32):
+    def __init__(self,training_net,frozen_net,memory,batch_size = 32):
         self.bs = batch_size
         self.gamma = 0.99
         self.trn_net = training_net
