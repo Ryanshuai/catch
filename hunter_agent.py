@@ -150,9 +150,9 @@ class Chooser():
     def __init__(self,act_num,num_pre_train=1000):
         self.act_num = act_num
         self.initial_exploration = 1.  # 1. #initial
-        self.final_exploration = 0.1
+        self.final_exploration = 0.05
         self.e = self.initial_exploration
-        self.final_exploration_frame = 100000
+        self.final_exploration_frame = 10000
         self.num_pre_train=num_pre_train
 
     def choose_action(self,sess,training_net,fi,total_step):
@@ -165,8 +165,10 @@ class Chooser():
 
         if np.random.rand(1) < self.e or total_step < self.num_pre_train:
             a = np.random.randint(0, self.act_num)
+            print('random_action:')
         else:
-            a = sess.run(training_net.predict, feed_dict={training_net.flattened_batch_fi: [flattened_fi]})[0]
+            a,act_value = sess.run([training_net.predict,training_net.Qout], feed_dict={training_net.flattened_batch_fi: [flattened_fi]})
+            print('act_value:','%.6f' %act_value)
         return a,self.e
 
 
@@ -175,10 +177,19 @@ class Updater():
         ur = 0.001
         frozen_params = tf.get_collection('frozen_variable')
         training_params = tf.get_collection('training_variable')
+        self.init_op_holder = []
+        for idx, var in enumerate(frozen_params):
+            op = frozen_params[idx].assign(training_params[idx].value())
+            self.init_op_holder.append(op)
+
         self.op_holder = []
         for idx, var in enumerate(frozen_params):
             op = frozen_params[idx].assign((1 - ur) * var.value() + ur * training_params[idx].value())
             self.op_holder.append(op)
+
+    def init_frozen_net(self,sess):
+        for op in self.init_op_holder:
+            sess.run(op)
 
     def update_frozen_net(self,sess):
         for op in self.op_holder:
@@ -187,18 +198,24 @@ class Updater():
 
 class Ploter():
     def __init__(self):
-        self.rList = []
+        self.reward_list = []
+        self.loss_list = []
 
-    def recoder_len(self):
-        return len(self.rList)
+    def save_reward(self,r_sum_in_episode):
+        self.reward_list.append(r_sum_in_episode)
 
-    def plt_save(self,r_sum_in_episode):
-        self.rList.append(r_sum_in_episode)
+    def save_loss(self,loss):
+        self.loss_list.append(loss)
 
-    def plot(self):
-        rMat = np.resize(np.array(rList), [len(rList) // 100, 100])
-        rMean = np.average(rMat, 1)
-        plt.plot(rMean)
+    def plot_reward(self):
+        reward_mat = np.resize(np.array(self.reward_list), [len(self.reward_list) // 100, 100])
+        reward_mean = np.average(reward_mat, axis = 1)
+        plt.plot(reward_mean)
+
+    def plot_loss(self):
+        loss_mat = np.resize(np.array(self.reward_list), [len(self.reward_list) // 100, 100])
+        loss_mean = np.average(loss_mat,  axis = 1)
+        plt.plot(loss_mean)
 
 
 

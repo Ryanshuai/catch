@@ -7,7 +7,7 @@ import cv2
 
 counter = Counter({'total_steps':0,'train_steps':0,'episode':0,'step_in_episode':0,
                    'r_sum_in_episode':0,'loss':0,'exploration':0})
-num_episodes = 10*1000
+num_episodes = 5*1000
 max_step_in_one_episode = 1000000000
 update_freq = 4
 num_pre_train=1000
@@ -43,9 +43,13 @@ def next_step(a):
         nextObservation[:, :, i] = next_image
     return nextObservation, reward_sum , terminal
 
-with tf.Session() as sess:
+
+tf_config = tf.ConfigProto()
+tf_config.gpu_options.allow_growth = True
+with tf.Session(config=tf_config) as sess:
     sess.run(tf.global_variables_initializer())
     model.restore(sess)
+    updater.init_frozen_net(sess)
     for episode in range(num_episodes):
         counter.update(('episode',))
         fi, r, done = next_step(0)
@@ -65,13 +69,15 @@ with tf.Session() as sess:
                 counter['loss'] = HA.train_traing_net(sess,training_net,frozen_net,memory)
                 counter.update(('train_steps',))
                 updater.update_frozen_net(sess)
+                ploter.save_loss(counter['loss'])
+                print('train_steps:', counter['train_steps'],'loss:', '%.6f' % counter['loss'])
 
-            print(counter)
             if done == True:
                 break
-
-        ploter.plt_save(counter['r_sum_in_episode'])
+        print('----------------------------------------------------episode:',counter['episode'],'exploration:','%.3f'%counter['exploration'],'r_sum_in_episode:',counter['r_sum_in_episode'])
+        ploter.save_reward(counter['r_sum_in_episode'])
         if counter['episode'] % save_mode_every == 0:
             model.store(sess, counter['episode'])
+            ploter.plot_loss()
+            ploter.plot_reward()
 
-ploter.plot()
