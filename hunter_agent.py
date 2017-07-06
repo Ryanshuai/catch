@@ -168,7 +168,7 @@ class Chooser():
             print('random_action:')
         else:
             a,act_value = sess.run([training_net.predict,training_net.Qout], feed_dict={training_net.flattened_batch_fi: [flattened_fi]})
-            print('act_value:','%.6f' %act_value)
+            print('act_value:',['%.6f' %i for i in act_value])
         return a,self.e
 
 
