@@ -43,8 +43,8 @@ class FrozenQNetwork():
 
         self.streamA, self.streamV = tf.split(self.h_fc5, 2, 1)#[bs, 32],#[bs, 32]
         xavier_init = tf.contrib.layers.xavier_initializer()
-        self.AW = tf.Variable(xavier_init([32,act_num])) #[32,act_num]
-        self.VW = tf.Variable(xavier_init([32,1])) #[32,1]
+        self.AW = tf.Variable(xavier_init([32,act_num]),collections=self.collection) #[32,act_num]
+        self.VW = tf.Variable(xavier_init([32,1]),collections=self.collection) #[32,1]
         self.Advantage = tf.matmul(self.streamA,self.AW) #[bs,act_num]
         self.Value = tf.matmul(self.streamV,self.VW) #[bs,1]
         # Then combine them together to get our final Q-values.
@@ -88,8 +88,8 @@ class TrainingQNetwork():
 
         self.streamA, self.streamV = tf.split(self.h_fc5, 2, 1)  # [bs, 32],#[bs, 32]
         xavier_init = tf.contrib.layers.xavier_initializer()
-        self.AW = tf.Variable(xavier_init([32, act_num]))  # [32,act_num]
-        self.VW = tf.Variable(xavier_init([32, 1]))  # [32,1]
+        self.AW = tf.Variable(xavier_init([32, act_num]), collections=self.collection)  # [32,act_num]
+        self.VW = tf.Variable(xavier_init([32, 1]), collections=self.collection)  # [32,1]
         self.Advantage = tf.matmul(self.streamA, self.AW)  # [bs,act_num]
         self.Value = tf.matmul(self.streamV, self.VW)  # [bs,1]
         # Then combine them together to get our final Q-values.
@@ -110,7 +110,7 @@ class TrainingQNetwork():
 
 
 class ExperienceMemory():
-    def __init__(self, memory_size=50000):
+    def __init__(self, memory_size=10000):
         self.memory = []
         self.memory_size = memory_size
 
@@ -150,7 +150,7 @@ class Chooser():
     def __init__(self,act_num,num_pre_train=1000):
         self.act_num = act_num
         self.initial_exploration = 1.  # 1. #initial
-        self.final_exploration = 0.05
+        self.final_exploration = 0.1
         self.e = self.initial_exploration
         self.final_exploration_frame = 10000
         self.num_pre_train=num_pre_train
@@ -165,11 +165,34 @@ class Chooser():
 
         if np.random.rand(1) < self.e or total_step < self.num_pre_train:
             a = np.random.randint(0, self.act_num)
-            print('random_action:')
+            print('rand_act')
         else:
             a,act_value = sess.run([training_net.predict,training_net.Qout], feed_dict={training_net.flattened_batch_fi: [flattened_fi]})
-            print('act_value:',['%.6f' %i for i in act_value])
+            print('act_value:',['%.6f' %i for i in act_value[0]])
         return a,self.e
+
+
+class Trainer():
+    def __int__(self,training_net,frozen_net,memory,batch_size = 32):
+        self.bs = batch_size
+        self.gamma = 0.99
+        self.trn_net = training_net
+        self.fro_net = frozen_net
+        self.mem = memory
+    def train_traing_net(self,sess):
+        trainBatch = self.mem.sample(self.bs)
+        # Below we perform the Double-DQN update to the target Q-values
+        Q_by_frozen_net = sess.run(self.fro_net.Qout, feed_dict={self.fro_net.flattened_batch_fi: np.vstack(trainBatch[:, 3])})#[bs,act_num]
+        argmax = sess.run(self.trn_net.predict,feed_dict={self.trn_net.flattened_batch_fi: np.vstack(trainBatch[:, 3])}) # [bs]
+        end_multiplier = -(trainBatch[:, 4] - 1)#array([bs])
+        doubleQ = Q_by_frozen_net[range(self.bs), argmax]#array([bs])
+        targetQ = trainBatch[:, 2] + (self.gamma * doubleQ * end_multiplier) #array([bs])
+        # Update the network with our target values.
+        _,loss = sess.run([self.trn_net.updateModel, self.trn_net.loss],
+                     feed_dict={self.trn_net.flattened_batch_fi: np.vstack(trainBatch[:, 0]),
+                                self.trn_net.targetQ: targetQ,
+                                self.trn_net.actions: trainBatch[:, 1]})
+        return loss
 
 
 class Updater():
@@ -219,20 +242,6 @@ class Ploter():
 
 
 
-def train_traing_net(sess,training_net,frozen_net,Memory,batch_size=32,gamma=0.99):
-    trainBatch = Memory.sample(batch_size)
-    # Below we perform the Double-DQN update to the target Q-values
-    Q_by_frozen_net = sess.run(frozen_net.Qout, feed_dict={frozen_net.flattened_batch_fi: np.vstack(trainBatch[:, 3])})#[bs,act_num]
-    argmax = sess.run(training_net.predict,feed_dict={training_net.flattened_batch_fi: np.vstack(trainBatch[:, 3])}) # [bs]
-    end_multiplier = -(trainBatch[:, 4] - 1)#array([bs])
-    doubleQ = Q_by_frozen_net[range(batch_size), argmax]#array([bs])
-    targetQ = trainBatch[:, 2] + (gamma * doubleQ * end_multiplier) #array([bs])
-    # Update the network with our target values.
-    _,loss = sess.run([training_net.updateModel, training_net.loss],
-                 feed_dict={training_net.flattened_batch_fi: np.vstack(trainBatch[:, 0]),
-                            training_net.targetQ: targetQ,
-                            training_net.actions: trainBatch[:, 1]})
-    return loss
 
 
 

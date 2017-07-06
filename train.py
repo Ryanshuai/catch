@@ -7,11 +7,11 @@ import cv2
 
 counter = Counter({'total_steps':0,'train_steps':0,'episode':0,'step_in_episode':0,
                    'r_sum_in_episode':0,'loss':0,'exploration':0})
-num_episodes = 5*1000
+num_episodes = 10*1000
 max_step_in_one_episode = 1000000000
 update_freq = 4
 num_pre_train=1000
-save_mode_every = 1000
+save_mode_per_episode = 1000
 
 tf.reset_default_graph()
 
@@ -23,6 +23,7 @@ model = HA.Model()
 chooser = HA.Chooser(act_num=2,num_pre_train=num_pre_train)
 updater = HA.Updater()
 ploter = HA.Ploter()
+trainer = HA.Trainer(training_net,frozen_net,memory)
 
 
 
@@ -66,17 +67,17 @@ with tf.Session(config=tf_config) as sess:
             counter['r_sum_in_episode'] += r
 
             if counter['total_steps'] > num_pre_train and counter['total_steps'] % update_freq == 0:
-                counter['loss'] = HA.train_traing_net(sess,training_net,frozen_net,memory)
+                counter['loss'] = trainer.train_traing_net(sess)
                 counter.update(('train_steps',))
                 updater.update_frozen_net(sess)
                 ploter.save_loss(counter['loss'])
-                print('train_steps:', counter['train_steps'],'loss:', '%.6f' % counter['loss'])
+                print('-----------------------------------------train_steps:', counter['train_steps'],'loss:', '%.8f' % counter['loss'])
 
             if done == True:
                 break
-        print('----------------------------------------------------episode:',counter['episode'],'exploration:','%.3f'%counter['exploration'],'r_sum_in_episode:',counter['r_sum_in_episode'])
+        print('---------------------------------------------------------------------------------total_steps:',counter['total_steps'],'episode:',counter['episode'],'exploration:','%.3f'%counter['exploration'],'r_sum_in_episode:',counter['r_sum_in_episode'])
         ploter.save_reward(counter['r_sum_in_episode'])
-        if counter['episode'] % save_mode_every == 0:
+        if counter['episode'] % save_mode_per_episode == 0:
             model.store(sess, counter['episode'])
             ploter.plot_loss()
             ploter.plot_reward()
