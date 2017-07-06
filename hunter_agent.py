@@ -232,13 +232,15 @@ class Ploter():
 
     def plot_reward(self):
         reward_mat = np.resize(np.array(self.reward_list), [len(self.reward_list) // 100, 100])
-        reward_mean = np.average(reward_mat, axis = 1)
+        reward_mean = np.mean(reward_mat, axis = 1)
         plt.plot(reward_mean)
+        plt.show()
 
     def plot_loss(self):
-        loss_mat = np.resize(np.array(self.reward_list), [len(self.reward_list) // 100, 100])
-        loss_mean = np.average(loss_mat,  axis = 1)
+        loss_mat = np.resize(np.array(self.loss_list), [len(self.loss_list) // 100, 100])
+        loss_mean = np.mean(loss_mat,  axis = 1)
         plt.plot(loss_mean)
+        plt.show()
 
 
 
