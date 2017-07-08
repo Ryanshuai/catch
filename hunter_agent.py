@@ -63,16 +63,22 @@ class TrainingQNetwork():
         ## conv1 layer ##
         self.W_conv1 = tf.Variable(tf.truncated_normal([8, 8, 4, 32], stddev=0.01), collections=self.collection)
         self.b_conv1 = tf.Variable(tf.constant(0.01, shape=[32]), collections=self.collection)
+        tf.summary.histogram('W_conv1',self.W_conv1)
+        tf.summary.histogram('b_conv1',self.b_conv1)
         self.conv1 = tf.nn.conv2d(self.batch_fi, self.W_conv1, strides=[1, 4, 4, 1], padding='SAME')
         self.h_conv1 = tf.nn.relu(self.conv1 + self.b_conv1)  # [bs,21,21,32]
         ## conv2 layer ##
         self.W_conv2 = tf.Variable(tf.truncated_normal([4, 4, 32, 64], stddev=0.01), collections=self.collection)
         self.b_conv2 = tf.Variable(tf.constant(0.01, shape=[64]), collections=self.collection)
+        tf.summary.histogram('W_conv2', self.W_conv2)
+        tf.summary.histogram('b_conv2', self.b_conv2)
         self.conv2 = tf.nn.conv2d(self.h_conv1, self.W_conv2, strides=[1, 2, 2, 1], padding='SAME')
         self.h_conv2 = tf.nn.relu(self.conv2 + self.b_conv2)  # [bs,11,11,64]
         ## conv3 layer ##
         self.W_conv3 = tf.Variable(tf.truncated_normal([3, 3, 64, 64], stddev=0.01), collections=self.collection)
         self.b_conv3 = tf.Variable(tf.constant(0.01, shape=[64]), collections=self.collection)
+        tf.summary.histogram('W_conv3', self.W_conv3)
+        tf.summary.histogram('b_conv3', self.b_conv3)
         self.conv3 = tf.nn.conv2d(self.h_conv2, self.W_conv3, strides=[1, 1, 1, 1], padding='SAME')
         self.h_conv3 = tf.nn.relu(self.conv3 + self.b_conv3)  # [bs,11,11,64]
 
@@ -80,16 +86,22 @@ class TrainingQNetwork():
         ## fc4 layer ##
         self.W_fc4 = tf.Variable(tf.truncated_normal([7744, 1024], stddev=0.01), collections=self.collection)
         self.b_fc4 = tf.Variable(tf.constant(0.01, shape=[1024]), collections=self.collection)
+        tf.summary.histogram('W_fc4', self.W_fc4)
+        tf.summary.histogram('b_fc4', self.b_fc4)
         self.h_fc4 = tf.nn.relu(tf.matmul(self.h_conv3_flat, self.W_fc4) + self.b_fc4)  # [bs, 1024]
         ## fc5 layer ##
         self.W_fc5 = tf.Variable(tf.truncated_normal([1024, 64], stddev=0.01), collections=self.collection)
         self.b_fc5 = tf.Variable(tf.constant(0.01, shape=[64]), collections=self.collection)
+        tf.summary.histogram('W_fc5', self.W_fc5)
+        tf.summary.histogram('b_fc5', self.b_fc5)
         self.h_fc5 = tf.matmul(self.h_fc4, self.W_fc5) + self.b_fc5  # [bs, 64]
 
         self.streamA, self.streamV = tf.split(self.h_fc5, 2, 1)  # [bs, 32],#[bs, 32]
         xavier_init = tf.contrib.layers.xavier_initializer()
         self.AW = tf.Variable(xavier_init([32, act_num]), collections=self.collection)  # [32,act_num]
         self.VW = tf.Variable(xavier_init([32, 1]), collections=self.collection)  # [32,1]
+        tf.summary.histogram('AW', self.AW)
+        tf.summary.histogram('VW', self.VW)
         self.Advantage = tf.matmul(self.streamA, self.AW)  # [bs,act_num]
         self.Value = tf.matmul(self.streamV, self.VW)  # [bs,1]
         # Then combine them together to get our final Q-values.
@@ -105,12 +117,14 @@ class TrainingQNetwork():
 
         self.td_error = tf.square(self.targetQ - self.Q)  # bs
         self.loss = tf.reduce_mean(self.td_error)  # 1
-        self.trainer = tf.train.AdamOptimizer(learning_rate=0.0001)
+        tf.summary.scalar('loss',self.loss)
+        self.trainer = tf.train.AdamOptimizer(learning_rate=0.0005)
         self.updateModel = self.trainer.minimize(self.loss)
+        self.merged_summary = tf.summary.merge_all()
 
 
 class ExperienceMemory():
-    def __init__(self, memory_size=10000):
+    def __init__(self, memory_size=20000):
         self.memory = []
         self.memory_size = memory_size
 
@@ -147,23 +161,23 @@ class Model():
 
 
 class Chooser():
-    def __init__(self,act_num,num_pre_train=1000):
+    def __init__(self,act_num,num_before_train):
         self.act_num = act_num
         self.initial_exploration = 1.  # 1. #initial
         self.final_exploration = 0.1
         self.e = self.initial_exploration
-        self.final_exploration_frame = 10000
-        self.num_pre_train=num_pre_train
+        self.final_exploration_frame = 30000
+        self.num_before_train=num_before_train
 
     def choose_action(self,sess,training_net,fi,total_step):
         flattened_fi = np.reshape(fi, [28224])
-        if total_step>self.num_pre_train:
+        if total_step>self.num_before_train:
             if (self.e > self.final_exploration):
                 self.e -= (self.initial_exploration - self.final_exploration) / self.final_exploration_frame
             else:
                 self.e = self.final_exploration
 
-        if np.random.rand(1) < self.e or total_step < self.num_pre_train:
+        if np.random.rand(1) < self.e or total_step < self.num_before_train:
             a = np.random.randint(0, self.act_num)
             print('rand_act')
         else:
@@ -173,7 +187,7 @@ class Chooser():
 
 
 class Trainer():
-    def __init__(self,training_net,frozen_net,memory,batch_size = 32):
+    def __init__(self,training_net,frozen_net,memory,batch_size = 64):
         self.bs = batch_size
         self.gamma = 0.99
         self.trn_net = training_net
@@ -188,11 +202,11 @@ class Trainer():
         doubleQ = Q_by_frozen_net[range(self.bs), argmax]#array([bs])
         targetQ = trainBatch[:, 2] + (self.gamma * doubleQ * end_multiplier) #array([bs])
         # Update the network with our target values.
-        _,loss = sess.run([self.trn_net.updateModel, self.trn_net.loss],
+        _,loss,merged_summary = sess.run([self.trn_net.updateModel, self.trn_net.loss, self.trn_net.merged_summary],
                      feed_dict={self.trn_net.flattened_batch_fi: np.vstack(trainBatch[:, 0]),
                                 self.trn_net.targetQ: targetQ,
                                 self.trn_net.actions: trainBatch[:, 1]})
-        return loss
+        return loss,merged_summary
 
 
 class Updater():
@@ -219,28 +233,28 @@ class Updater():
             sess.run(op)
 
 
-class Ploter():
-    def __init__(self):
-        self.reward_list = []
-        self.loss_list = []
-
-    def save_reward(self,r_sum_in_episode):
-        self.reward_list.append(r_sum_in_episode)
-
-    def save_loss(self,loss):
-        self.loss_list.append(loss)
-
-    def plot_reward(self):
-        reward_mat = np.resize(np.array(self.reward_list), [len(self.reward_list) // 100, 100])
-        reward_mean = np.mean(reward_mat, axis = 1)
-        plt.plot(reward_mean)
-        plt.show()
-
-    def plot_loss(self):
-        loss_mat = np.resize(np.array(self.loss_list), [len(self.loss_list) // 100, 100])
-        loss_mean = np.mean(loss_mat,  axis = 1)
-        plt.plot(loss_mean)
-        plt.show()
+# class Ploter():
+#     def __init__(self):
+#         self.reward_list = []
+#         self.loss_list = []
+#
+#     def save_reward(self,r_sum_in_episode):
+#         self.reward_list.append(r_sum_in_episode)
+#
+#     def save_loss(self,loss):
+#         self.loss_list.append(loss)
+#
+#     def plot_reward(self):
+#         reward_mat = np.resize(np.array(self.reward_list), [len(self.reward_list) // 100, 100])
+#         reward_mean = np.mean(reward_mat, axis = 1)
+#         plt.plot(reward_mean)
+#         plt.show()
+#
+#     def plot_loss(self):
+#         loss_mat = np.resize(np.array(self.loss_list), [len(self.loss_list) // 100, 100])
+#         loss_mean = np.mean(loss_mat,  axis = 1)
+#         plt.plot(loss_mean)
+#         plt.show()
 
 
 
