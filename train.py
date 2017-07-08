@@ -6,7 +6,7 @@ import cv2
 from game import wrapped_flappy_bird as bird
 
 counter = Counter({'total_steps':0,'train_steps':0,'episode':0,'step_in_episode':0,
-                   'r_sum_in_episode':0,'loss':0,'exploration':0})
+                   'r_sum_in_episode':0,'loss':0,'exploration':0,'summary':0})
 num_episodes = 50*1000
 update_freq = 4
 num_before_train=1000
@@ -24,7 +24,6 @@ trainer = HA.Trainer(training_net,frozen_net,memory)
 chooser = HA.Chooser(act_num=action_num,num_before_train=num_before_train)
 model = HA.Model()
 updater = HA.Updater()
-ploter = HA.Ploter()
 
 
 def next_step(a):
@@ -69,17 +68,18 @@ with tf.Session(config=tf_config) as sess:
             counter['r_sum_in_episode'] += r
 
             if counter['total_steps'] > num_before_train and counter['total_steps'] % update_freq == 0:
-                counter['loss'],merged_summary = trainer.train_traing_net(sess)
-                tf_writer.add_summary(merged_summary,counter['total_steps'])
+                counter.update(('summary',))
+                if counter['summary']%10 == 0:
+                    counter['loss'],merged_summary = trainer.train_traing_net_with_summary(sess)
+                    tf_writer.add_summary(merged_summary,counter['train_steps'])
+                else:
+                    counter['loss'] = trainer.train_traing_net(sess)
                 counter.update(('train_steps',))
                 updater.update_frozen_net(sess)
-                ploter.save_loss(counter['loss'])
                 print('---------------------------------------------------------------------------------train_steps:', counter['train_steps'],'loss:', '%.8f' % counter['loss'])
 
         print('---------------------------------------------------------------------------------total_steps:',counter['total_steps'],'episode:',counter['episode'],'exploration:','%.3f'%counter['exploration'],'r_sum_in_episode:',counter['r_sum_in_episode'])
-        ploter.save_reward(counter['r_sum_in_episode'])
+
         if counter['episode'] % save_mode_per_episode == 0:
             model.store(sess, counter['episode'])
-            ploter.plot_loss()
-            ploter.plot_reward()
 

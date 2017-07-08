@@ -193,6 +193,7 @@ class Trainer():
         self.trn_net = training_net
         self.fro_net = frozen_net
         self.mem = memory
+
     def train_traing_net(self,sess):
         trainBatch = self.mem.sample(self.bs)
         # Below we perform the Double-DQN update to the target Q-values
@@ -201,11 +202,28 @@ class Trainer():
         end_multiplier = -(trainBatch[:, 4] - 1)#array([bs])
         doubleQ = Q_by_frozen_net[range(self.bs), argmax]#array([bs])
         targetQ = trainBatch[:, 2] + (self.gamma * doubleQ * end_multiplier) #array([bs])
-        # Update the network with our target values.
-        _,loss,merged_summary = sess.run([self.trn_net.updateModel, self.trn_net.loss, self.trn_net.merged_summary],
-                     feed_dict={self.trn_net.flattened_batch_fi: np.vstack(trainBatch[:, 0]),
-                                self.trn_net.targetQ: targetQ,
-                                self.trn_net.actions: trainBatch[:, 1]})
+        #Update the network with our target values.
+        _, loss = sess.run(
+            [self.trn_net.updateModel, self.trn_net.loss],
+            feed_dict={self.trn_net.flattened_batch_fi: np.vstack(trainBatch[:, 0]),
+                       self.trn_net.targetQ: targetQ,
+                       self.trn_net.actions: trainBatch[:, 1]})
+        return loss
+
+    def train_traing_net_with_summary(self,sess):
+        trainBatch = self.mem.sample(self.bs)
+        # Below we perform the Double-DQN update to the target Q-values
+        Q_by_frozen_net = sess.run(self.fro_net.Qout, feed_dict={self.fro_net.flattened_batch_fi: np.vstack(trainBatch[:, 3])})#[bs,act_num]
+        argmax = sess.run(self.trn_net.predict,feed_dict={self.trn_net.flattened_batch_fi: np.vstack(trainBatch[:, 3])}) # [bs]
+        end_multiplier = -(trainBatch[:, 4] - 1)#array([bs])
+        doubleQ = Q_by_frozen_net[range(self.bs), argmax]#array([bs])
+        targetQ = trainBatch[:, 2] + (self.gamma * doubleQ * end_multiplier) #array([bs])
+        #Update the network with our target values.
+        _, loss, merged_summary = sess.run(
+            [self.trn_net.updateModel, self.trn_net.loss, self.trn_net.merged_summary],
+            feed_dict={self.trn_net.flattened_batch_fi: np.vstack(trainBatch[:, 0]),
+                       self.trn_net.targetQ: targetQ,
+                       self.trn_net.actions: trainBatch[:, 1]})
         return loss,merged_summary
 
 
