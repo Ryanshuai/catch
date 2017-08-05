@@ -5,44 +5,103 @@ import random
 import os
 
 #Implementing the network itself
-class FrozenQNetwork():
+
+
+class PretrainQNetwork():
     def __init__(self,act_num):
-        self.collection = ['frozen_variable', tf.GraphKeys.GLOBAL_VARIABLES]
+        self.collection = ['pretrain_variable', tf.GraphKeys.GLOBAL_VARIABLES]
         self.w = 84
         self.h = 84
         self.d = 4
+
+        xavier_init = tf.contrib.layers.xavier_initializer()
+        xavier_init_conv2d = tf.contrib.layers.xavier_initializer_conv2d()
 
         self.flattened_batch_fi = tf.placeholder(shape=[None, 28224], dtype=tf.float32)#[bs,28224]
         self.batch_fi = tf.reshape(self.flattened_batch_fi, shape=[-1, self.w, self.h, self.d])#[bs,w=84,h=84,d=4]
 
         ## conv1 layer ##
-        self.W_conv1 = tf.Variable(tf.truncated_normal([8, 8, 4, 32], stddev=0.01), collections=self.collection)
-        self.b_conv1 = tf.Variable(tf.constant(0.01, shape=[32]), collections=self.collection)
+        self.W_conv1 = tf.Variable(xavier_init_conv2d([8, 8, 4, 32]), collections=self.collection)
+        self.b_conv1 = tf.Variable(tf.constant(0, shape=[32]), collections=self.collection)
         self.conv1 = tf.nn.conv2d(self.batch_fi, self.W_conv1, strides=[1, 4, 4, 1], padding='SAME')
         self.h_conv1 = tf.nn.relu(self.conv1 + self.b_conv1)#[bs,21,21,32]
         ## conv2 layer ##
-        self.W_conv2 = tf.Variable(tf.truncated_normal([4, 4, 32, 64], stddev=0.01), collections=self.collection)
-        self.b_conv2 = tf.Variable(tf.constant(0.01, shape=[64]), collections=self.collection)
+        self.W_conv2 = tf.Variable(xavier_init_conv2d([4, 4, 32, 64]), collections=self.collection)
+        self.b_conv2 = tf.Variable(tf.constant(0, shape=[64]), collections=self.collection)
         self.conv2 = tf.nn.conv2d(self.h_conv1, self.W_conv2, strides=[1, 2, 2, 1], padding='SAME')
         self.h_conv2 = tf.nn.relu(self.conv2 + self.b_conv2)#[bs,11,11,64]
         ## conv3 layer ##
-        self.W_conv3 = tf.Variable(tf.truncated_normal([3, 3, 64, 64], stddev=0.01), collections=self.collection)
-        self.b_conv3 = tf.Variable(tf.constant(0.01, shape=[64]), collections=self.collection)
+        self.W_conv3 = tf.Variable(xavier_init_conv2d([3, 3, 64, 64]), collections=self.collection)
+        self.b_conv3 = tf.Variable(tf.constant(0, shape=[64]), collections=self.collection)
         self.conv3 = tf.nn.conv2d(self.h_conv2, self.W_conv3, strides=[1, 1, 1, 1], padding='SAME')
         self. h_conv3 = tf.nn.relu(self.conv3 + self.b_conv3)#[bs,11,11,64]
 
         self.h_conv3_flat = tf.reshape(self.h_conv3, [-1, 7744])#[bs, 7744]
         ## fc4 layer ##
-        self.W_fc4 = tf.Variable(tf.truncated_normal([7744, 1024], stddev=0.01), collections=self.collection)
-        self.b_fc4 = tf.Variable(tf.constant(0.01, shape=[1024]), collections=self.collection)
+        self.W_fc4 = tf.Variable(xavier_init([7744, 1024]), collections=self.collection)
+        self.b_fc4 = tf.Variable(tf.constant(0, shape=[1024]), collections=self.collection)
         self.h_fc4 = tf.nn.relu(tf.matmul(self.h_conv3_flat, self.W_fc4) + self.b_fc4)#[bs, 1024]
         ## fc5 layer ##
-        self.W_fc5 = tf.Variable(tf.truncated_normal([1024, 64], stddev=0.01),collections=self.collection)
-        self.b_fc5 = tf.Variable(tf.constant(0.01, shape=[64]), collections=self.collection)
+        self.W_fc5 = tf.Variable(xavier_init([1024, 64]),collections=self.collection)
+        self.b_fc5 = tf.Variable(tf.constant(0, shape=[64]), collections=self.collection)
         self.h_fc5 = tf.matmul(self.h_fc4, self.W_fc5) + self.b_fc5#[bs, 64]
 
-        self.streamA, self.streamV = tf.split(self.h_fc5, 2, 1)#[bs, 32],#[bs, 32]
+        ## fc6 layer ##
+        self.W_fc6 = tf.Variable(xavier_init([64, 10]), collections=self.collection)
+        self.b_fc6 = tf.Variable(tf.constant(0, shape=[10]), collections=self.collection)
+        self.h_fc6 = tf.matmul(self.h_fc5, self.W_fc6) + self.b_fc6  # [bs, 10]
+
+
+
+
+
+class FrozenQNetwork():
+    def __init__(self,act_num):
+        self.collection_pretrain = ['pretrain_frozen_variable', tf.GraphKeys.GLOBAL_VARIABLES]
+        self.collection = ['frozen_variable', tf.GraphKeys.GLOBAL_VARIABLES]
+        self.w = 84
+        self.h = 84
+        self.d = 4
+
         xavier_init = tf.contrib.layers.xavier_initializer()
+        xavier_init_conv2d = tf.contrib.layers.xavier_initializer_conv2d()
+
+        self.flattened_batch_fi = tf.placeholder(shape=[None, 28224], dtype=tf.float32)#[bs,28224]
+        self.batch_fi = tf.reshape(self.flattened_batch_fi, shape=[-1, self.w, self.h, self.d])#[bs,w=84,h=84,d=4]
+
+        ## conv1 layer ##
+        self.W_conv1 = tf.Variable(xavier_init_conv2d([8, 8, 4, 32]), collections=self.collection_pretrain)
+        self.b_conv1 = tf.Variable(tf.constant(0, shape=[32]), collections=self.collection_pretrain)
+        self.conv1 = tf.nn.conv2d(self.batch_fi, self.W_conv1, strides=[1, 4, 4, 1], padding='SAME')
+        self.h_conv1 = tf.nn.relu(self.conv1 + self.b_conv1)#[bs,21,21,32]
+        ## conv2 layer ##
+        self.W_conv2 = tf.Variable(xavier_init_conv2d([4, 4, 32, 64]), collections=self.collection_pretrain)
+        self.b_conv2 = tf.Variable(tf.constant(0, shape=[64]), collections=self.collection_pretrain)
+        self.conv2 = tf.nn.conv2d(self.h_conv1, self.W_conv2, strides=[1, 2, 2, 1], padding='SAME')
+        self.h_conv2 = tf.nn.relu(self.conv2 + self.b_conv2)#[bs,11,11,64]
+        ## conv3 layer ##
+        self.W_conv3 = tf.Variable(xavier_init_conv2d([3, 3, 64, 64]), collections=self.collection_pretrain)
+        self.b_conv3 = tf.Variable(tf.constant(0, shape=[64]), collections=self.collection_pretrain)
+        self.conv3 = tf.nn.conv2d(self.h_conv2, self.W_conv3, strides=[1, 1, 1, 1], padding='SAME')
+        self. h_conv3 = tf.nn.relu(self.conv3 + self.b_conv3)#[bs,11,11,64]
+
+        self.h_conv3_flat = tf.reshape(self.h_conv3, [-1, 7744])#[bs, 7744]
+        ## fc4 layer ##
+        self.W_fc4 = tf.Variable(xavier_init([7744, 1024]), collections=self.collection_pretrain)
+        self.b_fc4 = tf.Variable(tf.constant(0, shape=[1024]), collections=self.collection_pretrain)
+        self.h_fc4 = tf.nn.relu(tf.matmul(self.h_conv3_flat, self.W_fc4) + self.b_fc4)#[bs, 1024]
+        ## fc5 layer ##
+        self.W_fc5 = tf.Variable(xavier_init([1024, 64]),collections=self.collection_pretrain)
+        self.b_fc5 = tf.Variable(tf.constant(0, shape=[64]), collections=self.collection_pretrain)
+        self.h_fc5 = tf.matmul(self.h_fc4, self.W_fc5) + self.b_fc5#[bs, 64]
+
+        ## fc6 layer ##
+        self.W_fc6 = tf.Variable(xavier_init([64, 4]), collections=self.collection_pretrain)
+        self.b_fc6 = tf.Variable(tf.constant(0, shape=[4]), collections=self.collection_pretrain)
+        self.h_fc6 = tf.matmul(self.h_fc5, self.W_fc6) + self.b_fc6  # [bs, 4]
+
+        self.streamA, self.streamV = tf.split(self.h_fc5, 2, 1)#[bs, 32],#[bs, 32]
+
         self.AW = tf.Variable(xavier_init([32,act_num]),collections=self.collection) #[32,act_num]
         self.VW = tf.Variable(xavier_init([32,1]),collections=self.collection) #[32,1]
         self.Advantage = tf.matmul(self.streamA,self.AW) #[bs,act_num]
@@ -54,29 +113,33 @@ class FrozenQNetwork():
 class TrainingQNetwork():
     def __init__(self, act_num):
         self.collection = ['training_variable', tf.GraphKeys.GLOBAL_VARIABLES]
+        self.collection_pretrain = ['pretrain_training_variable', tf.GraphKeys.GLOBAL_VARIABLES]
         self.w = 84
         self.h = 84
         self.d = 4
 
+        xavier_init = tf.contrib.layers.xavier_initializer()
+        xavier_init_conv2d = tf.contrib.layers.xavier_initializer_conv2d()
+
         self.flattened_batch_fi = tf.placeholder(shape=[None, 28224], dtype=tf.float32)#[bs,28224]
         self.batch_fi = tf.reshape(self.flattened_batch_fi, shape=[-1, self.w, self.h, self.d])#[bs,w=84,h=84,d=4]
         ## conv1 layer ##
-        self.W_conv1 = tf.Variable(tf.truncated_normal([8, 8, 4, 32], stddev=0.01), collections=self.collection)
-        self.b_conv1 = tf.Variable(tf.constant(0.01, shape=[32]), collections=self.collection)
+        self.W_conv1 = tf.Variable(xavier_init_conv2d([8, 8, 4, 32]), collections=self.collection_pretrain)
+        self.b_conv1 = tf.Variable(tf.constant(0, shape=[32]), collections=self.collection_pretrain)
         tf.summary.histogram('W_conv1',self.W_conv1)
         tf.summary.histogram('b_conv1',self.b_conv1)
         self.conv1 = tf.nn.conv2d(self.batch_fi, self.W_conv1, strides=[1, 4, 4, 1], padding='SAME')
         self.h_conv1 = tf.nn.relu(self.conv1 + self.b_conv1)  # [bs,21,21,32]
         ## conv2 layer ##
-        self.W_conv2 = tf.Variable(tf.truncated_normal([4, 4, 32, 64], stddev=0.01), collections=self.collection)
-        self.b_conv2 = tf.Variable(tf.constant(0.01, shape=[64]), collections=self.collection)
+        self.W_conv2 = tf.Variable(xavier_init_conv2d([4, 4, 32, 64]), collections=self.collection_pretrain)
+        self.b_conv2 = tf.Variable(tf.constant(0, shape=[64]), collections=self.collection_pretrain)
         tf.summary.histogram('W_conv2', self.W_conv2)
         tf.summary.histogram('b_conv2', self.b_conv2)
         self.conv2 = tf.nn.conv2d(self.h_conv1, self.W_conv2, strides=[1, 2, 2, 1], padding='SAME')
         self.h_conv2 = tf.nn.relu(self.conv2 + self.b_conv2)  # [bs,11,11,64]
         ## conv3 layer ##
-        self.W_conv3 = tf.Variable(tf.truncated_normal([3, 3, 64, 64], stddev=0.01), collections=self.collection)
-        self.b_conv3 = tf.Variable(tf.constant(0.01, shape=[64]), collections=self.collection)
+        self.W_conv3 = tf.Variable(xavier_init_conv2d([3, 3, 64, 64]), collections=self.collection_pretrain)
+        self.b_conv3 = tf.Variable(tf.constant(0, shape=[64]), collections=self.collection_pretrain)
         tf.summary.histogram('W_conv3', self.W_conv3)
         tf.summary.histogram('b_conv3', self.b_conv3)
         self.conv3 = tf.nn.conv2d(self.h_conv2, self.W_conv3, strides=[1, 1, 1, 1], padding='SAME')
@@ -84,20 +147,25 @@ class TrainingQNetwork():
 
         self.h_conv3_flat = tf.reshape(self.h_conv3, [-1, 7744])  # [bs, 7744]
         ## fc4 layer ##
-        self.W_fc4 = tf.Variable(tf.truncated_normal([7744, 1024], stddev=0.01), collections=self.collection)
-        self.b_fc4 = tf.Variable(tf.constant(0.01, shape=[1024]), collections=self.collection)
+        self.W_fc4 = tf.Variable(xavier_init([7744, 1024]), collections=self.collection_pretrain)
+        self.b_fc4 = tf.Variable(tf.constant(0, shape=[1024]), collections=self.collection_pretrain)
         tf.summary.histogram('W_fc4', self.W_fc4)
         tf.summary.histogram('b_fc4', self.b_fc4)
         self.h_fc4 = tf.nn.relu(tf.matmul(self.h_conv3_flat, self.W_fc4) + self.b_fc4)  # [bs, 1024]
         ## fc5 layer ##
-        self.W_fc5 = tf.Variable(tf.truncated_normal([1024, 64], stddev=0.01), collections=self.collection)
-        self.b_fc5 = tf.Variable(tf.constant(0.01, shape=[64]), collections=self.collection)
+        self.W_fc5 = tf.Variable(xavier_init([1024, 64]), collections=self.collection_pretrain)
+        self.b_fc5 = tf.Variable(tf.constant(0, shape=[64]), collections=self.collection_pretrain)
         tf.summary.histogram('W_fc5', self.W_fc5)
         tf.summary.histogram('b_fc5', self.b_fc5)
         self.h_fc5 = tf.matmul(self.h_fc4, self.W_fc5) + self.b_fc5  # [bs, 64]
 
+        ## fc6 layer ##
+        self.W_fc6 = tf.Variable(xavier_init([64, 4]), collections=self.collection_pretrain)
+        self.b_fc6 = tf.Variable(tf.constant(0, shape=[4]), collections=self.collection_pretrain)
+        self.h_fc6 = tf.matmul(self.h_fc5, self.W_fc6) + self.b_fc6  # [bs, 4]
+
         self.streamA, self.streamV = tf.split(self.h_fc5, 2, 1)  # [bs, 32],#[bs, 32]
-        xavier_init = tf.contrib.layers.xavier_initializer()
+
         self.AW = tf.Variable(xavier_init([32, act_num]), collections=self.collection)  # [32,act_num]
         self.VW = tf.Variable(xavier_init([32, 1]), collections=self.collection)  # [32,1]
         tf.summary.histogram('AW', self.AW)
