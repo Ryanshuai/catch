@@ -52,19 +52,18 @@ pretrain_net = HA.PretrainQNetwork()
 
 tf_config = tf.ConfigProto()
 tf_config.gpu_options.allow_growth = True
+
 with tf.Session(config=tf_config) as sess:
+    tf_writer = tf.summary.FileWriter('logs/')
+    tf_writer.add_graph(sess.graph)
+    sess.run(tf.global_variables_initializer())
     for train_step in range(total_train_step):
 
         trainBatch = memory.sample(32)
         # Below we perform the Double-DQN update to the target Q-values
-        = sess.run(pretrain_net.h_fc6, feed_dict={pretrain_net.flattened_batch_fi: np.vstack(trainBatch[:, 3])})#[bs,act_num]
-        escaper_pos = pos0
-        escaper_spd = spd0
+
         #Update the network with our target values.
-        _, loss = sess.run(
-            [self.trn_net.updateModel, self.trn_net.loss],
-            feed_dict={self.trn_net.flattened_batch_fi: np.vstack(trainBatch[:, 0]),
-                       self.trn_net.targetQ: targetQ,
-                       self.trn_net.actions: trainBatch[:, 1]})
-        return loss
+        _ = sess.run(pretrain_net.optimize,
+            feed_dict={pretrain_net.flattened_batch_fi: np.vstack(trainBatch[:, 0]),
+                       pretrain_net.robots_state: })
 

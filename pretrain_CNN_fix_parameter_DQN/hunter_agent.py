@@ -47,16 +47,21 @@ class PretrainQNetwork():
         self.h_fc5 = tf.matmul(self.h_fc4, self.W_fc5) + self.b_fc5#[bs, 64]
 
         ## fc6 layer ##
-        self.W_fc6 = tf.Variable(xavier_init([64, 10]), collections=self.collection)
-        self.b_fc6 = tf.Variable(tf.constant(0, shape=[10]), collections=self.collection)
+        self.W_fc6 = tf.Variable(xavier_init([64, 20]), collections=self.collection)
+        self.b_fc6 = tf.Variable(tf.constant(0, shape=[20]), collections=self.collection)
         self.h_fc6 = tf.matmul(self.h_fc5, self.W_fc6) + self.b_fc6  # [bs, 10]
 
-        self. hunter_pos = tf.placeholder(shape=[None, 4]) # [bs, 10]
-        self.hunter_spd = tf.placeholder(shape=[None, 4]) # [bs, 10]
-        self.escaper_pos = tf.placeholder(shape=[None, 1])# [bs, 10]
-        self.escaper_spd = tf.placeholder(shape=[None, 1])# [bs, 10]
+        self. robots_state = tf.placeholder(shape=[None, 20]) # [bs, 10]
 
-        self.loss =
+        self.state_error = tf.square(self. robots_state - self.h_fc6)  # bs
+        self.loss = tf.reduce_mean(self.state_error)  # 1
+        tf.summary.scalar('loss', self.loss)
+
+        self.trainer = tf.train.AdamOptimizer(learning_rate=0.0005)
+        self.optimize = self.trainer.minimize(self.loss)
+
+
+
 
 
 
