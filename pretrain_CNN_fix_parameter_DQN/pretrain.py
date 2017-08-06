@@ -11,9 +11,9 @@ class Position_Speed_Memory():
         self.memory = []
         self.memory_size = memory_size
 
-    def add(self, fi, hunter_pos, hunter_spd, escaper_pos, escaper_spd):
+    def add(self, fi, robot_state):
         flattened_fi = np.reshape(fi, [28224])
-        experience = np.reshape(np.array([flattened_fi, hunter_pos, hunter_spd, escaper_pos, escaper_spd]),[1,5])
+        experience = np.reshape(np.array([flattened_fi, robot_state]),[1,5])
         if len(self.memory) + len(experience) >= self.memory_size:
             self.memory[0:(len(experience) + len(self.memory)) - self.memory_size] = []
         self.memory.extend(experience)
@@ -26,11 +26,11 @@ def next_step(action):
     nextObservation = np.zeros(shape=[84, 84, 4], dtype = np.uint8)
     for i in range(4):
 
-        next_image, hunter_pos, hunter_spd, escaper_pos, escaper_spd = env.frame_step(action)
+        next_image, robot_state = env.frame_step(action)
 
         next_image = cv2.cvtColor(cv2.resize(next_image, (84, 84)), cv2.COLOR_BGR2GRAY)
         nextObservation[:, :, i] = next_image
-    return nextObservation, hunter_pos, hunter_spd, escaper_pos, escaper_spd
+    return nextObservation, robot_state
 
 
 action_num = 5
@@ -42,8 +42,8 @@ env = ENV()
 
 for iii in range(100000):
     action = np.random.randint(0, action_num, size=robot_num)
-    nextObservation, hunter_pos, hunter_spd, escaper_pos, escaper_spd = next_step(action)
-    memory.add(nextObservation, hunter_pos, hunter_spd, escaper_pos, escaper_spd)
+    nextObservation, robot_state = next_step(action)
+    memory.add(nextObservation, robot_state)
 
 
 total_train_step = 1000000
