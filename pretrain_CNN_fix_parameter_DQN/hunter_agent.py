@@ -8,7 +8,7 @@ import os
 
 
 class PretrainQNetwork():
-    def __init__(self,act_num):
+    def __init__(self):
         self.collection = ['pretrain_variable', tf.GraphKeys.GLOBAL_VARIABLES]
         self.w = 84
         self.h = 84

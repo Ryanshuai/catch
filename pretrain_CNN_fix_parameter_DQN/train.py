@@ -3,7 +3,6 @@ import tensorflow as tf
 from collections import Counter
 import numpy as np
 import cv2
-from game import wrapped_flappy_bird as bird
 
 counter = Counter({'total_steps':0,'train_steps':0,'episode':0,'step_in_episode':0,
                    'r_sum_in_episode':0,'loss':0,'exploration':0,'summary':0})
