@@ -74,8 +74,12 @@ class ENV:
         image_data = pygame.surfarray.array3d(pygame.display.get_surface())
         pygame.display.update()
         FPSCLOCK.tick(FPS)
-       
-        return image_data, self.hunter_pos, self.hunter_spd, self.escaper_pos, self.escaper_spd
+
+        robot_state = [self.escaper_pos[0], self.hunter_pos[0][0], self.hunter_pos[1][0], self.hunter_pos[2][0],self.hunter_pos[3][0],
+                       self.escaper_pos[1], self.hunter_pos[0][1], self.hunter_pos[1][1], self.hunter_pos[2][1],self.hunter_pos[3][1],
+                       self.escaper_spd[0], self.hunter_spd[0][0], self.hunter_spd[1][0], self.hunter_spd[2][0],self.hunter_spd[3][0],
+                       self.escaper_spd[1], self.hunter_spd[0][1], self.hunter_spd[1][1], self.hunter_spd[2][1],self.hunter_spd[3][1],]
+        return image_data, robot_state
 
 
     def move(self, input_actions):
