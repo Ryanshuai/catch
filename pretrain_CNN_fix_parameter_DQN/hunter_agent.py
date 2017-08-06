@@ -51,7 +51,12 @@ class PretrainQNetwork():
         self.b_fc6 = tf.Variable(tf.constant(0, shape=[10]), collections=self.collection)
         self.h_fc6 = tf.matmul(self.h_fc5, self.W_fc6) + self.b_fc6  # [bs, 10]
 
+        self. hunter_pos = tf.placeholder(shape=[None, 4]) # [bs, 10]
+        self.hunter_spd = tf.placeholder(shape=[None, 4]) # [bs, 10]
+        self.escaper_pos = tf.placeholder(shape=[None, 1])# [bs, 10]
+        self.escaper_spd = tf.placeholder(shape=[None, 1])# [bs, 10]
 
+        self.loss =
 
 
 

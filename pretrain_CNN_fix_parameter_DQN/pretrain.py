@@ -57,7 +57,7 @@ with tf.Session(config=tf_config) as sess:
 
         trainBatch = memory.sample(32)
         # Below we perform the Double-DQN update to the target Q-values
-        spd0, pos0, spd1, pos1, spd2, pos2, spd3, pos3, spd4, pos4 = sess.run(pretrain_net.h_fc6, feed_dict={pretrain_net.flattened_batch_fi: np.vstack(trainBatch[:, 3])})#[bs,act_num]
+        = sess.run(pretrain_net.h_fc6, feed_dict={pretrain_net.flattened_batch_fi: np.vstack(trainBatch[:, 3])})#[bs,act_num]
         escaper_pos = pos0
         escaper_spd = spd0
         #Update the network with our target values.
