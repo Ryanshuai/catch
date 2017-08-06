@@ -59,6 +59,7 @@ class PretrainQNetwork():
 
         self.trainer = tf.train.AdamOptimizer(learning_rate=0.0005)
         self.optimize = self.trainer.minimize(self.loss)
+        self.merged_summary = tf.summary.merge_all()
 
 
 

@@ -63,7 +63,7 @@ with tf.Session(config=tf_config) as sess:
         # Below we perform the Double-DQN update to the target Q-values
 
         #Update the network with our target values.
-        _ = sess.run(pretrain_net.optimize,
-            feed_dict={pretrain_net.flattened_batch_fi: np.vstack(trainBatch[:, 0]),
-                       pretrain_net.robots_state: })
-
+        _, tf_summary = sess.run([pretrain_net.optimize,pretrain_net.merged_summary],
+                                feed_dict={pretrain_net.flattened_batch_fi: np.vstack(trainBatch[:, 0]),
+                                            pretrain_net.robots_state: })
+        tf_writer.add_summary(tf_summary, train_step)
