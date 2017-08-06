@@ -151,3 +151,17 @@ class ENV:
         else:
             pass
         self.escaper_pos += self.escaper_spd * self.delta_t
+        
+        if self.escaper_pos[0] < 0:
+            self.escaper_pos[0] = 0
+            self.escaper_spd[0] = 0
+        elif self.escaper_pos[0] > SCREEN_WHIDTH:
+            self.escaper_pos[0] = SCREEN_WHIDTH
+            self.escaper_spd[0] = 0
+
+        if self.escaper_pos[1] < 0:
+            self.escaper_pos[1] = 0
+            self.escaper_spd[1] = 0
+        elif self.escaper_pos[1] > SCREEN_HEIGHT:
+            self.escaper_pos[1] = SCREEN_HEIGHT
+            self.escaper_spd[1] = 0

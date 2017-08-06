@@ -13,13 +13,13 @@ class Position_Speed_Memory():
 
     def add(self, fi, robot_state):
         flattened_fi = np.reshape(fi, [28224])
-        experience = np.reshape(np.array([flattened_fi, robot_state]),[1,5])
+        experience = np.reshape(np.array([flattened_fi, robot_state]),[1, 2])
         if len(self.memory) + len(experience) >= self.memory_size:
             self.memory[0:(len(experience) + len(self.memory)) - self.memory_size] = []
         self.memory.extend(experience)
 
     def sample(self, size):
-        return np.reshape(np.array(random.sample(self.memory, size)), [size, 5])
+        return np.reshape(np.array(random.sample(self.memory, size)), [size, 2])
 
 def next_step(action):
 
@@ -40,7 +40,7 @@ memory = Position_Speed_Memory()
 env = ENV()
 
 
-for iii in range(100000):
+for iii in range(160):
     action = np.random.randint(0, action_num, size=robot_num)
     nextObservation, robot_state = next_step(action)
     memory.add(nextObservation, robot_state)
@@ -60,15 +60,24 @@ with tf.Session(config=tf_config) as sess:
     for train_step in range(total_train_step):
 
         trainBatch = memory.sample(32)
-        # Below we perform the Double-DQN update to the target Q-values
+
+        # Below are new memory
+        if(train_step<100000):
+            action = np.random.randint(0, action_num, size=robot_num)
+            nextObservation, robot_state = next_step(action)
+            memory.add(nextObservation, robot_state)
+
 
         #Update the network with our target values.
         if(train_step%100==0):
-            _, tf_summary = sess.run([pretrain_net.optimize,pretrain_net.merged_summary],
+            _, tf_summary, predict = sess.run([pretrain_net.optimize,pretrain_net.merged_summary,pretrain_net.h_fc6],
                                     feed_dict={pretrain_net.flattened_batch_fi: np.vstack(trainBatch[:, 0]),
-                                                pretrain_net.robots_state: })
+                                                pretrain_net.robots_state: np.vstack(trainBatch[:, 1])})
+            print('--------------------------------------------------tarin_step', train_step)
+            print('pre',predict[0])
+            print('tar',np.vstack(trainBatch[:, 1])[0])
             tf_writer.add_summary(tf_summary, train_step)
         else:
             _ = sess.run([pretrain_net.optimize],
                           feed_dict={pretrain_net.flattened_batch_fi: np.vstack(trainBatch[:, 0]),
-                                     pretrain_net.robots_state:})
+                                     pretrain_net.robots_state:np.vstack(trainBatch[:, 1])})
